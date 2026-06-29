@@ -1038,6 +1038,10 @@ local modFlagList = {
 	["with ranged weapons"] = { flags = bor(ModFlag.WeaponRanged, ModFlag.Hit) },
 	-- Skill types
 	["spell"] = { flags = ModFlag.Spell },
+	["fire spell"] = { flags = ModFlag.Spell, keywordFlags = KeywordFlag.Fire },
+	["cold spell"] = { flags = ModFlag.Spell, keywordFlags = KeywordFlag.Cold },
+	["lightning spell"] = { flags = ModFlag.Spell, keywordFlags = KeywordFlag.Lightning },
+	["chaos spell"] = { flags = ModFlag.Spell, keywordFlags = KeywordFlag.Chaos },
 	["for spells"] = { flags = ModFlag.Spell },
 	["for spell skills"] = { flags = ModFlag.Spell },
 	["for spell damage"] = { flags = ModFlag.Spell },
@@ -3893,6 +3897,7 @@ local specialModList = {
 	["your chaos damage can ignite"] = { flag("ChaosCanIgnite") },
 	["chaos damage can ignite, chill and shock"] = { flag("ChaosCanIgnite"), flag("ChaosCanChill"), flag("ChaosCanShock") },
 	["your physical damage can chill"] = { flag("PhysicalCanChill") },
+	["physical damage from hits contributes to chill magnitude and freeze buildup"] = {	flag("PhysicalCanChill"), flag("PhysicalCanFreeze")	},
 	["your physical damage can shock"] = { flag("PhysicalCanShock") },
 	["your physical damage can freeze"] = { flag("PhysicalCanFreeze") },
 	["your lightning damage can freeze"] = { flag("LightningCanFreeze") },
@@ -5847,6 +5852,7 @@ local specialModList = {
 		mod("CritChanceCap", "OVERRIDE", num),
 	} end,
 	["allocates (.+) if you have the matching modifiers? on forbidden (.+)"] = function(_, ascendancy, side) return { mod("GrantedAscendancyNode", "LIST", { side = side, name = ascendancy }) } end,
+	["allocates (%d+) sinister jewel sockets?"] = function(num) return { mod("GrantedPassive", "LIST", { type = "SinisterJewelSockets", count = num }) } end,
 	["allocates (.+)"] = function(_, passive) return { mod("GrantedPassive", "LIST", passive) } end,
 	["battlemage"] = { flag("Battlemage"), mod("MainHandWeaponDamageAppliesToSpells", "MAX", 100) },
 	["transfiguration of body"] = { flag("TransfigurationOfBody") },
@@ -6004,6 +6010,9 @@ local specialModList = {
 	["skill mana costs converted to life costs"] = { mod("HybridManaAndLifeCost_Life", "BASE", 100) },
 	["attack skills cost life instead of (%d+)%% of mana cost"] = function(num) return {
 		mod("HybridManaAndLifeCost_Life", "BASE", num, nil, ModFlag.Attack)
+	} end,
+	["skills from corrupted gems have (%d+)%% of mana costs converted to life costs"] = function(num) return {
+		mod("HybridManaAndLifeCost_Life", "BASE", num, { type = "Condition", var = "GemCorrupted" }),
 	} end,
 	["non%-channelling spells cost an additional (%d+)%% of your maximum life"] = function(num) return {
 		mod("LifeCostBase", "BASE", 1, nil, 0, KeywordFlag.Spell, { type = "PercentStat", percent = num, stat = "Life", floor = true }, { type = "SkillType", skillType = SkillType.Channel, neg = true })

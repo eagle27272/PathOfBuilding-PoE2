@@ -168,6 +168,10 @@ end
 ---@return number? value         returned if the mod is an option and uses values. e.g. timeless jewel
 function M.findTradeHash(item, modLine, modType, isDesecrated)
 	local formattedLine = M.formatDatabaseText(modLine)
+	-- hack for belt implicits not matching. TODO: use stat_descriptions instead, which define what
+	-- description is the canonical form that is used on the trade site, either by assuming it's the
+	-- first one, or one with a marker called "canonical_line"
+	formattedLine = formattedLine:gsub("Has # Charm Slots", "Has # Charm Slot")
 	-- the data export splits some mods into different parts, even though they
 	-- are technically just one stat. we handle that here
 	local isUnique = item.rarity == "UNIQUE" or item.rarity == "RELIC"
@@ -252,8 +256,8 @@ function M.findTradeHash(item, modLine, modType, isDesecrated)
 			end
 		end
 	end
-	-- essence mods don't seem to have spawn weights and are tested last
-	for _, dbMod in pairs(data.itemMods.Item) do
+	-- essence and emotion mods don't seem to have spawn weights and are tested last
+	for _, dbMod in pairs(item.affixes) do
 		local tradeHashMaybe = findStat(dbMod, true)
 		if tradeHashMaybe then
 			return tradeHashMaybe
@@ -450,7 +454,7 @@ local ITEM_BOX_H = 20
 
 function M.drawCompactSlotRow(drawY, slotLabel, pItem, cItem,
 	colWidth, cursorX, cursorY, maxLabelW, primaryItemsTab, compareItemsTab, pWarn, cWarn, slotMissing,
-	copyBtnW, copyBtnH, buyBtnW, equipBtnW, xOffset)
+	copyBtnW, copyBtnH, buyBtnW, equipBtnW, xOffset, shouldUnderlineLabel)
 
 	xOffset = xOffset or 0
 	local pName = pItem and pItem.name or "(empty)"
@@ -480,7 +484,13 @@ function M.drawCompactSlotRow(drawY, slotLabel, pItem, cItem,
 
 	-- Draw slot label
 	SetDrawColor(1, 1, 1)
-	DrawString(labelX, drawY + 2, "LEFT", 16, "VAR", "^7" .. slotLabel .. ":")
+	local labelText = "^7" .. slotLabel .. ":"
+	DrawString(labelX, drawY + 2, "LEFT", 16, "VAR", labelText)
+
+	if shouldUnderlineLabel then
+		local labelW = DrawStringWidth(16, "VAR", labelText)
+		DrawImage(nil, labelX, drawY + 2 + 16, labelW, 1)
+	end
 
 	-- Draw primary item box
 	local pBorderGray = pHover and 0.5 or 0.33
@@ -529,4 +539,17 @@ function M.drawCompactSlotRow(drawY, slotLabel, pItem, cItem,
 		hoverItem, hoverItemsTab, hoverBoxX, hoverBoxY, hoverBoxW, hoverBoxH
 end
 
+-- Helper: create a numeric EditControl without +/- spinner buttons, and
+-- with a preset changeFunc intended for mod values
+function M.newPlainNumericEdit(anchor, rect, init, prompt, limit, integer, changeFunc)
+	local format = integer and "%D" or "^%d."
+	local ctrl = new("EditControl", anchor, rect, init, prompt, format, limit, changeFunc)
+	-- Remove the +/- spinner buttons that "%D" filter triggers
+	ctrl.isNumeric = false
+	if ctrl.controls then
+		if ctrl.controls.buttonDown then ctrl.controls.buttonDown.shown = false end
+		if ctrl.controls.buttonUp then ctrl.controls.buttonUp.shown = false end
+	end
+	return ctrl
+end
 return M
