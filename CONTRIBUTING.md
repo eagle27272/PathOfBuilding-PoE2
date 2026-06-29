@@ -69,7 +69,10 @@ The easiest way to make and test changes is by setting up a development installa
 3. Start Path of Building from the repository.
        * On Windows, run `./runtime/Path{space}of{space}Building-PoE2.exe`
        * On Linux, run `wine ./runtime/Path{space}of{space}Building-PoE2.exe`
+       * On macOS, install Wine, Whisky, or CrossOver, then run `./Path\ of\ Building-PoE2.command`
        * <ins>Note for Linux users:</ins> `chmod +x` only fixes the execute bit. The file is still a Windows executable, so Wine is required to run it.
+
+       The macOS launcher uses the bundled Windows runtime through Wine. If your Wine executable is not on `PATH`, launch with `POB_WINE=/path/to/wine ./Path\ of\ Building-PoE2.command`.
 
 You can now use the shortcut to run the program from the repository. Running the program in this manner automatically enables "Dev Mode", which has some handy debugging feature:
 * `F5` restarts the program in-place (this is what usually happens when an update is applied).
@@ -98,7 +101,7 @@ To do so [comment out Line 54 to line 58](./src/Launch.lua#L54-L58) of the [Laun
 	--end
 ```
 
-and create a valid manifest.xml file in the ./src directory. Then run the `./runtime/Path{space}of{space}Building-PoE2.exe` as usual. You should get the typical update popup in the bottom left corner.
+and create a valid manifest.xml file in the ./src directory. Then run the `./runtime/Path{space}of{space}Building-PoE2.exe` as usual, or `./Path\ of\ Building-PoE2.command` on macOS. You should get the typical update popup in the bottom left corner.
 
 The manifest.xml file deserves its own in depth document, but usually copying from release and editing accordingly works well enough.
 

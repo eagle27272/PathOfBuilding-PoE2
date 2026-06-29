@@ -12,6 +12,10 @@ local curl = require("lcurl.safe")
 local lzip = require("lzip")
 
 local globalRetryLimit = 10
+local function getNodePlatform(node)
+	return node.attrib.platform or node.attrib.runtime
+end
+
 local function downloadFileText(source, file)
 	for i = 1, 5 do
 		if i > 1 then
@@ -115,12 +119,13 @@ if localManXML and localManXML[1].elem == "PoBVersion" then
 			elseif node.elem == "File" then
 				local fullPath
 				node.attrib.name = node.attrib.name:gsub("{space}", " ")
+				local filePlatform = getNodePlatform(node)
 				if node.attrib.part == "runtime" then
 					fullPath = runtimePath .. "/" .. node.attrib.name
 				else
 					fullPath = scriptPath .. "/" .. node.attrib.name
 				end
-				localFiles[node.attrib.name] = { sha1 = node.attrib.sha1, part = node.attrib.part, platform = node.attrib.platform, fullPath = fullPath }
+				localFiles[node.attrib.name] = { sha1 = node.attrib.sha1, part = node.attrib.part, platform = filePlatform, fullPath = fullPath }
 				if node.attrib.part == "runtime" and node.attrib.name:match("Path of Building") then
 					runtimeExecutable = fullPath
 				end
@@ -155,14 +160,15 @@ if remoteManXML and remoteManXML[1].elem == "PoBVersion" then
 				end
 				remoteSources[node.attrib.part][node.attrib.platform or "any"] = node.attrib.url
 			elseif node.elem == "File" then
-				if not node.attrib.platform or node.attrib.platform == localPlatform then
+				local filePlatform = getNodePlatform(node)
+				if not filePlatform or filePlatform == localPlatform then
 					local fullPath
 					if node.attrib.part == "runtime" then
 						fullPath = runtimePath .. "/" .. node.attrib.name
 					else
 						fullPath = scriptPath .. "/" .. node.attrib.name
 					end
-					remoteFiles[node.attrib.name] = { sha1 = node.attrib.sha1, part = node.attrib.part, platform = node.attrib.platform, fullPath = fullPath }
+					remoteFiles[node.attrib.name] = { sha1 = node.attrib.sha1, part = node.attrib.part, platform = filePlatform, fullPath = fullPath }
 				end
 			end
 		end
@@ -223,7 +229,15 @@ for index, data in ipairs(updateFiles) do
 		UpdateProgress("Downloading %d/%d", index, #updateFiles)
 	end
 	local partSources = remoteSources[data.part]
+	if not partSources then
+		ConPrintf("Update failed: no source for manifest part '%s'", data.part)
+		return nil, "No update source is defined for manifest part '"..data.part.."'."
+	end
 	local source = partSources[localPlatform] or partSources["any"]
+	if not source then
+		ConPrintf("Update failed: no source for manifest part '%s' on platform '%s'", data.part, localPlatform or "any")
+		return nil, "No update source is defined for '"..data.part.."' on platform '"..(localPlatform or "any").."'."
+	end
 	source = source:gsub("{branch}", localBranch)
 	local fileName = scriptPath.."/Update/"..data.name:gsub("[\\/]","{slash}")
 	data.updateFileName = fileName

@@ -45,6 +45,25 @@ def _alphanumeric(key: str) -> list[int | str]:
     ]
 
 
+def _section_part(config: configparser.ConfigParser, section: str) -> str:
+    """Return the manifest part represented by a config section."""
+    return config[section].get("part", section)
+
+
+def _section_platform(config: configparser.ConfigParser, section: str) -> str | None:
+    """Return the optional platform for a config section.
+
+    The historical [runtime] section contains the Windows runtime, so keep
+    generating win32-scoped runtime entries unless manifest.cfg says otherwise.
+    """
+    platform = config[section].get("platform")
+    if platform:
+        return platform
+    if _section_part(config, section) == "runtime":
+        return "win32"
+    return None
+
+
 def create_manifest(version: str | None = None, replace: bool = False) -> None:
     """Generate new SHA1 hashes and version number for Path of Building's manifest file.
 
@@ -75,24 +94,28 @@ def create_manifest(version: str | None = None, replace: bool = False) -> None:
 
     base_url = "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/"
     parts: list[dict[str, str]] = []
-    for part in config.sections():
-        url = base_url + config[part]["path"]
+    for section in config.sections():
+        part = _section_part(config, section)
+        platform = _section_platform(config, section)
+        url = base_url + config[section]["path"]
         url_with_trailing_slash = url if url.endswith("/") else url + "/"
-        attributes = (
-            {"part": part, "platform": "win32", "url": url_with_trailing_slash}
-            if part == "runtime"
-            else {"part": part, "url": url_with_trailing_slash}
-        )
+        attributes = {"part": part, "url": url_with_trailing_slash}
+        if platform:
+            attributes["platform"] = platform
         parts.append(attributes)
 
     files: list[dict[str, str]] = []
     for section in config.sections():
+        part = _section_part(config, section)
+        platform = _section_platform(config, section)
         include_files = _parse_list_option(config, section, "include-files")
         include_dirs = _parse_list_option(config, section, "include-directories")
         exclude_files = _parse_list_option(config, section, "exclude-files")
         exclude_dirs = _parse_list_option(config, section, "exclude-directories")
         source = pathlib.Path(config[section]["path"])
-        for path in source.glob("**/*.*"):
+        for path in source.rglob("*"):
+            if not path.is_file():
+                continue
             if include_files and not _exclude_file(include_files, path):
                 continue
             if include_dirs and not _exclude_directory(include_dirs, path):
@@ -107,11 +130,9 @@ def create_manifest(version: str | None = None, replace: bool = False) -> None:
                 data = re.sub(rb"\r\n?|\n", b"\r\n", data)
             sha1 = hashlib.sha1(data).hexdigest()
             name = path.relative_to(config[section]["path"]).as_posix()
-            attributes = (
-                {"name": name, "part": section, "runtime": "win32", "sha1": sha1}
-                if path.suffix in [".dll", ".exe"]
-                else {"name": name, "part": section, "sha1": sha1}
-            )
+            attributes = {"name": name, "part": part, "sha1": sha1}
+            if platform:
+                attributes["platform"] = platform
             files.append(attributes)
 
     files.sort(key=lambda attr: (attr["part"], _alphanumeric(attr["name"])))
