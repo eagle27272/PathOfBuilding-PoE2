@@ -1,0 +1,77 @@
+name: Build native launcher runtimes
+on:
+    workflow_dispatch:
+    pull_request:
+        paths:
+            - '.github/workflows/native-runtime.yml'
+            - 'launcher/**'
+            - 'scripts/package-native-runtime.sh'
+    push:
+        branches: [dev]
+        paths:
+            - '.github/workflows/native-runtime.yml'
+            - 'launcher/**'
+            - 'scripts/package-native-runtime.sh'
+    release:
+        types: [published]
+
+permissions:
+    contents: write
+
+jobs:
+    package:
+        name: ${{ matrix.target }}
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - target: macos-arm64
+                      runner: macos-15
+                      platform: macos
+                      architecture: arm64
+                    - target: macos-x64
+                      runner: macos-15-intel
+                      platform: macos
+                      architecture: x64
+                    - target: linux-arm64
+                      runner: ubuntu-24.04-arm
+                      platform: linux
+                      architecture: arm64
+                    - target: linux-x64
+                      runner: ubuntu-24.04
+                      platform: linux
+                      architecture: x64
+                    - target: win32-arm64
+                      runner: windows-11-arm
+                      platform: win32
+                      architecture: arm64
+                    - target: win32-x64
+                      runner: windows-2025
+                      platform: win32
+                      architecture: x64
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Package native launcher runtime
+              shell: bash
+              env:
+                  POB_RUNTIME_PLATFORM: ${{ matrix.platform }}
+                  POB_RUNTIME_ARCHITECTURE: ${{ matrix.architecture }}
+              run: |
+                  set -eu
+                  scripts/package-native-runtime.sh
+                  tar -C "runtime/${{ matrix.target }}" -cf "PathOfBuildingRuntime-${{ matrix.target }}.tar" .
+                  tar -tf "PathOfBuildingRuntime-${{ matrix.target }}.tar"
+            - name: Upload workflow artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: PathOfBuildingRuntime-${{ matrix.target }}
+                  path: PathOfBuildingRuntime-${{ matrix.target }}.tar
+                  if-no-files-found: error
+            - name: Upload release asset
+              if: github.event_name == 'release'
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: gh release upload "${{ github.event.release.tag_name }}" "PathOfBuildingRuntime-${{ matrix.target }}.tar" --clobber --repo "${{ github.repository }}"

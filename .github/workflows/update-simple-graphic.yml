@@ -1,4 +1,4 @@
-name: Update SimpleGraphic DLLs
+name: Update SimpleGraphic runtime
 on:
     repository_dispatch:
         types: [update-simple-graphic]
@@ -6,26 +6,41 @@ jobs:
     update:
         runs-on: ubuntu-latest
         steps:
+            - name: Set line endings
+              run: git config --global core.autocrlf true
             - name: Checkout
               uses: actions/checkout@v3
               with:
                 ref: 'dev'
-            - name: Download DLLs
-              uses: robinraju/release-downloader@v1
-              with:
-                repository: ${{ github.repository_owner }}/PathOfBuilding-SimpleGraphic
-                tag: ${{ github.event.client_payload.tag }}
-                fileName: SimpleGraphicDLLs-x64-windows.tar
-                extract: true
-                out-file-path: runtime
-            - name: Delete .tar file
-              run: rm runtime/SimpleGraphicDLLs-x64-windows.tar
+            - name: Download runtime archives
+              env:
+                GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                SIMPLEGRAPHIC_RELEASE_TAG: ${{ github.event.client_payload.tag }}
+                SIMPLEGRAPHIC_RELEASE_REPO: ${{ github.event.client_payload.release_repo || format('{0}/PathOfBuilding-SimpleGraphic', github.repository_owner) }}
+                POB_RUNTIME_RELEASE_TAG: ${{ github.event.client_payload.launcher_tag || '' }}
+                POB_RUNTIME_RELEASE_REPO: ${{ github.event.client_payload.launcher_release_repo || github.repository }}
+              run: |
+                set -eu
+                mkdir -p runtime-assets
+                gh release download "$SIMPLEGRAPHIC_RELEASE_TAG" --repo "$SIMPLEGRAPHIC_RELEASE_REPO" --pattern 'SimpleGraphicDLLs-x64-windows.tar' --dir runtime-assets --clobber || true
+                gh release download "$SIMPLEGRAPHIC_RELEASE_TAG" --repo "$SIMPLEGRAPHIC_RELEASE_REPO" --pattern 'SimpleGraphicRuntime-*.tar' --dir runtime-assets --clobber || true
+                gh release download "$SIMPLEGRAPHIC_RELEASE_TAG" --repo "$SIMPLEGRAPHIC_RELEASE_REPO" --pattern 'SimpleGraphicRuntime-*.tar.gz' --dir runtime-assets --clobber || true
+                gh release download "$SIMPLEGRAPHIC_RELEASE_TAG" --repo "$SIMPLEGRAPHIC_RELEASE_REPO" --pattern 'SimpleGraphicRuntime-*.tgz' --dir runtime-assets --clobber || true
+                if [ -n "$POB_RUNTIME_RELEASE_TAG" ]; then
+                  gh release download "$POB_RUNTIME_RELEASE_TAG" --repo "$POB_RUNTIME_RELEASE_REPO" --pattern 'PathOfBuildingRuntime-*.tar' --dir runtime-assets --clobber || true
+                  gh release download "$POB_RUNTIME_RELEASE_TAG" --repo "$POB_RUNTIME_RELEASE_REPO" --pattern 'PathOfBuildingRuntime-*.tar.gz' --dir runtime-assets --clobber || true
+                  gh release download "$POB_RUNTIME_RELEASE_TAG" --repo "$POB_RUNTIME_RELEASE_REPO" --pattern 'PathOfBuildingRuntime-*.tgz' --dir runtime-assets --clobber || true
+                fi
+            - name: Install runtime archives
+              run: |
+                scripts/install-runtime-assets.sh runtime-assets
+                python3 update_manifest.py --quiet --in-place
             - name: Create Pull Request
               uses: peter-evans/create-pull-request@v5
               with:
-                title: Update to SimpleGraphic ${{ github.event.client_payload.tag }}
+                title: Update SimpleGraphic runtime to ${{ github.event.client_payload.tag }}
                 branch: simple-graphic-${{ github.event.client_payload.tag }}
                 body: |
-                    Update DLLs to SimpleGraphic-${{ github.event.client_payload.tag }} from ${{ github.event.client_payload.release_link }}
-                commit-message: Update DLLs to SimpleGraphic-${{ github.event.client_payload.tag }}
+                    Update SimpleGraphic runtime files to SimpleGraphic-${{ github.event.client_payload.tag }} from ${{ github.event.client_payload.release_link }}
+                commit-message: Update SimpleGraphic runtime to ${{ github.event.client_payload.tag }}
               

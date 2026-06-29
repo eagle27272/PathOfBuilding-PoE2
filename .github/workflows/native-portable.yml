@@ -1,0 +1,41 @@
+name: Build native portable packages
+on:
+    workflow_dispatch:
+        inputs:
+            tag_name:
+                description: 'Release tag to upload assets to'
+                required: false
+                default: ''
+            manifest_branch:
+                description: 'Branch stamped into packaged manifest.xml'
+                required: false
+                default: 'master'
+    release:
+        types: [published]
+
+permissions:
+    contents: write
+
+jobs:
+    package:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.release.tag_name || github.event.inputs.tag_name || github.ref }}
+            - name: Package portable runtimes
+              run: python3 scripts/package-portable.py --all-targets --branch "${{ github.event.inputs.manifest_branch || 'master' }}"
+            - name: Upload workflow artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: native-portable-packages
+                  path: Dist/*.zip
+                  if-no-files-found: error
+            - name: Upload release assets
+              if: github.event_name == 'release' || github.event.inputs.tag_name != ''
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag_name }}
+              run: gh release upload "$RELEASE_TAG" Dist/*.zip --clobber --repo "${{ github.repository }}"

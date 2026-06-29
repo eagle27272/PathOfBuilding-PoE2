@@ -9,8 +9,10 @@
 ## Download
 Head over to the [Releases](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/releases) page to download the install wizard or portable zip.
 
-### macOS
-The current bundled runtime is the Windows SimpleGraphic runtime. On macOS, install Wine or another Windows compatibility layer, then run `Path of Building-PoE2.command` from the repository or portable zip. Set `POB_WINE=/path/to/wine` before launching if Wine is not on your `PATH`.
+### Native macOS/Linux runtimes
+Run `Path of Building-PoE2.command` from the repository or portable zip. The launcher looks for a native runtime matching your platform and CPU architecture under `runtime/<platform>-<architecture>/`.
+
+The current bundled runtime is still the legacy Windows SimpleGraphic runtime. Until native runtime artifacts are published, set `POB_WINE=/path/to/wine` or `POB_ALLOW_WINE=1` to opt into the Windows fallback.
 
 ## Features
 * Comprehensive offence + defence calculations:

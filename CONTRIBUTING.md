@@ -69,10 +69,10 @@ The easiest way to make and test changes is by setting up a development installa
 3. Start Path of Building from the repository.
        * On Windows, run `./runtime/Path{space}of{space}Building-PoE2.exe`
        * On Linux, run `wine ./runtime/Path{space}of{space}Building-PoE2.exe`
-       * On macOS, install Wine, Whisky, or CrossOver, then run `./Path\ of\ Building-PoE2.command`
+       * On macOS, run `./Path\ of\ Building-PoE2.command`
        * <ins>Note for Linux users:</ins> `chmod +x` only fixes the execute bit. The file is still a Windows executable, so Wine is required to run it.
 
-       The macOS launcher uses the bundled Windows runtime through Wine. If your Wine executable is not on `PATH`, launch with `POB_WINE=/path/to/wine ./Path\ of\ Building-PoE2.command`.
+       The POSIX launcher prefers a native runtime in `runtime/<platform>-<architecture>/`. The checked-in runtime is currently still the legacy Windows runtime, so set `POB_WINE=/path/to/wine` or `POB_ALLOW_WINE=1` only when you intentionally want that fallback.
 
 You can now use the shortcut to run the program from the repository. Running the program in this manner automatically enables "Dev Mode", which has some handy debugging feature:
 * `F5` restarts the program in-place (this is what usually happens when an update is applied).
