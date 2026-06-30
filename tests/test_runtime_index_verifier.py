@@ -1,4 +1,4 @@
-# cspell:ignore unindexed simplegraphic
+# cspell:ignore unindexed simplegraphic riscv
 import hashlib
 import io
 import json

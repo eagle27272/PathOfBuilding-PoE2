@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:ignore armv riscv armhf unindexed
+# cspell:ignore armv riscv armhf unindexed BASENAMES basenames
 import argparse
 import hashlib
 import json
