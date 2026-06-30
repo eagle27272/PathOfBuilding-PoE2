@@ -1,5 +1,5 @@
 #!/bin/sh
-# cspell:ignore armv armhf riscv ARCHITEW RUNNER DCMAKE SIMPLEGRAPHIC liblib
+# cspell:ignore CDPATH armv armhf riscv ARCHITEW RUNNER DCMAKE SIMPLEGRAPHIC liblib
 set -eu
 
 case "$0" in

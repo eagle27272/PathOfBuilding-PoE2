@@ -1,5 +1,5 @@
 #!/bin/sh
-# cspell:ignore armv armhf riscv simplegraphic pathlib getmembers joinpath isfile issym extractall isinstance
+# cspell:ignore CDPATH armv armhf riscv simplegraphic pathlib getmembers joinpath isfile issym extractall isinstance
 set -eu
 
 case "$0" in
