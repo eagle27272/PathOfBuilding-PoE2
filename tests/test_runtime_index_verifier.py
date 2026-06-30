@@ -410,12 +410,53 @@ def test_verify_runtime_index_accepts_future_platform_module_file_names(tmp_path
     asset_dir = tmp_path / "assets"
     asset_dir.mkdir()
     modules = ["lcurl.native", "lua-utf8.native", "socket.native", "lzip.native"]
+    system_dependencies = ["libc.so.7", "libthr.so.3"]
     runtime_entry = _write_asset(
         asset_dir / "SimpleGraphicRuntime-freebsd-riscv64.tar",
         b"future runtime",
         manifest_overrides={
             "entryLibrary": "SimpleGraphic.native",
             "luaModules": modules,
+            "systemDependencies": ["LibC.SO.7", "libthr.so.3"],
+            "files": [
+                "SimpleGraphicRuntime.json",
+                "SimpleGraphic.native",
+                *modules,
+            ],
+        },
+    )
+    runtime_entry.update(
+        {
+            "entryLibrary": "SimpleGraphic.native",
+            "luaModules": modules,
+            "systemDependencies": system_dependencies,
+            "files": [
+                "SimpleGraphicRuntime.json",
+                "SimpleGraphic.native",
+                *modules,
+            ],
+        }
+    )
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 0, result.stderr
+    assert "Verified 1 SimpleGraphic runtime archive(s)" in result.stdout
+
+
+def test_verify_runtime_index_rejects_system_dependency_metadata_mismatch(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    modules = ["lcurl.native", "lua-utf8.native", "socket.native", "lzip.native"]
+    runtime_entry = _write_asset(
+        asset_dir / "SimpleGraphicRuntime-freebsd-riscv64.tar",
+        b"future runtime",
+        manifest_overrides={
+            "entryLibrary": "SimpleGraphic.native",
+            "luaModules": modules,
+            "systemDependencies": ["libc.so.7"],
             "files": [
                 "SimpleGraphicRuntime.json",
                 "SimpleGraphic.native",
@@ -439,8 +480,25 @@ def test_verify_runtime_index_accepts_future_platform_module_file_names(tmp_path
 
     result = _run_verifier(asset_dir, index_path)
 
-    assert result.returncode == 0, result.stderr
-    assert "Verified 1 SimpleGraphic runtime archive(s)" in result.stdout
+    assert result.returncode == 1
+    assert "systemDependencies metadata does not match index" in result.stderr
+
+
+def test_verify_runtime_index_rejects_unsafe_system_dependency_name(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    runtime_entry = _write_asset(
+        asset_dir / "SimpleGraphicRuntime-macos-arm64.tar",
+        b"macos runtime",
+    )
+    runtime_entry["systemDependencies"] = ["../libbad.dylib"]
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 1
+    assert "must be a flat file name" in result.stderr
 
 
 def test_verify_runtime_index_rejects_required_symlink_runtime_files(tmp_path) -> None:

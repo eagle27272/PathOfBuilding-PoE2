@@ -146,6 +146,23 @@ def require_flat_file_list(value: object, field: str) -> list[str]:
     return names
 
 
+def require_system_dependencies(value: object, field: str, optional: bool = False) -> list[str]:
+    if value is None and optional:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        fail(f"index field {field!r} must be a string list")
+
+    dependencies: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        name = safe_file_name(item, field).lower()
+        if name in seen:
+            fail(f"index field {field!r} contains duplicate entry {name!r}")
+        seen.add(name)
+        dependencies.append(name)
+    return sorted(dependencies)
+
+
 def lua_module_basename(module: str) -> str:
     return module.split(".", 1)[0]
 
@@ -353,6 +370,16 @@ def verify_runtime_archive_manifest(
     require_manifest_value(manifest, archive_path, "architecture", architecture)
     for key in ("buildType", "layout", "entryLibrary", "entrypoints", "luaModules", "files"):
         require_manifest_value(manifest, archive_path, key, entry[key])
+    manifest_system_dependencies = require_system_dependencies(
+        manifest.get("systemDependencies"),
+        f"{archive_path.name}.manifest.systemDependencies",
+        optional=True,
+    )
+    if manifest_system_dependencies != entry["systemDependencies"]:
+        fail(
+            f"{archive_path.name} systemDependencies metadata does not match index: "
+            f"expected {entry['systemDependencies']!r}, got {manifest_system_dependencies!r}"
+        )
     if set(entry["files"]) != names:
         missing = names - set(entry["files"])
         extra = set(entry["files"]) - names
@@ -394,6 +421,11 @@ def verify_runtime_entry(asset_dir: pathlib.Path, entry: dict, field: str) -> tu
     entry["entrypoints"] = require_entrypoints(entry.get("entrypoints"), f"{field}.entrypoints")
     entry["luaModules"] = require_lua_modules(entry.get("luaModules"), f"{field}.luaModules", platform)
     entry["files"] = require_flat_file_list(entry.get("files"), f"{field}.files")
+    entry["systemDependencies"] = require_system_dependencies(
+        entry.get("systemDependencies"),
+        f"{field}.systemDependencies",
+        optional=True,
+    )
     archive_path = verify_file_checksum(asset_dir, entry, field)
     verify_runtime_archive_manifest(archive_path, entry, target, platform, architecture)
     return file_name, target
