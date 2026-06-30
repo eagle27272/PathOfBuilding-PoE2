@@ -1455,8 +1455,8 @@ function main:OpenAboutPopup(helpSectionIndex)
 	end)
 	controls.version = new("LabelControl", nil, {0, 18, 0, 18}, "^7Path of Building Community Fork v"..launch.versionNumber)
 	controls.forum = new("LabelControl", nil, {0, 36, 0, 18}, "^7Based on Openarl's Path of Building")
-	controls.github = new("ButtonControl", nil, {0, 62, 480, 18}, "^7GitHub page: ^x4040FFhttps://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2", function(control)
-		OpenURL("https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2")
+	controls.github = new("ButtonControl", nil, {0, 62, 480, 18}, "^7GitHub page: ^x4040FFhttps://github.com/eagle27272/PathOfBuilding-PoE2", function(control)
+		OpenURL("https://github.com/eagle27272/PathOfBuilding-PoE2")
 	end)
 	controls.verLabel = new("ButtonControl", {"TOPLEFT", nil, "TOPLEFT"}, {10, 85, 100, 18}, "^7Version history:", function()
 		controls.changelog.list = changeList
@@ -1757,7 +1757,7 @@ function main:OpenCloudErrorPopup(fileName)
 	local statusText = tostring(status) or "nil"
 	local msg = "\n^7Cannot read file.\n\nMake sure "..provider.." is running then restart "..APP_NAME.." and try again."..
 		fileName.."\nstatus: "..statusText.."\n\n"..version
-	local url = "https://github.com/PathOfBuildingCommunity/PathOfBuilding/wiki/CloudError"
+	local url = "https://github.com/eagle27272/PathOfBuilding/wiki/CloudError"
 	local controls = { }
 	local numMsgLines = 0
 	for line in string.gmatch(msg .. "\n", "([^\n]*)\n") do

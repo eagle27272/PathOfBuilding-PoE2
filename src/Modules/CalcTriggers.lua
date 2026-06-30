@@ -122,7 +122,7 @@ function calcMultiSpellRotationImpact(env, skillRotation, sourceRate, triggerCD,
 	for _, sd in ipairs(skillRotation) do
 		-- Account for trigger chance. Adds the expected value of a geometric distribution where p = chance multiplied by triggerIncrement
 		-- This allows for O(1) estimation of trigger chance impact on trigger rate as number of triggers approaches infinity
-		-- Credit to Logik and Quickstick. More info in prs linked here: https://github.com/PathOfBuildingCommunity/PathOfBuilding/pull/7244 and on discord.
+		-- Credit to Logik and Quickstick. More info in prs linked here: https://github.com/eagle27272/PathOfBuilding/pull/7244 and on discord.
 		t_insert(trigRateTable.rates, { name = sd.uuid, rate = 1 / (SIM_TIME / sd.count + (triggerIncrement / chance * 100) - triggerIncrement) })
 		if cacheSkillUUID(actor.mainSkill, env) == sd.uuid then
 			mainRate = trigRateTable.rates[#trigRateTable.rates].rate

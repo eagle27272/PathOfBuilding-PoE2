@@ -43,7 +43,7 @@ cp temp_change.md changelog_temp.txt
 # Append existing CHANGELOG.md content (excluding first line) to temp_change.md
 cat CHANGELOG.md | sed '1d' >> temp_change.md
 # Create new CHANGELOG.md with header containing version and date, followed by processed changes
-printf "# Changelog\n\n## [$RELEASE_VERSION](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/tree/$RELEASE_VERSION) ($(date +'%Y/%m/%d'))\n\n" | cat - temp_change.md > CHANGELOG.md
+printf "# Changelog\n\n## [$RELEASE_VERSION](https://github.com/eagle27272/PathOfBuilding-PoE2/tree/$RELEASE_VERSION) ($(date +'%Y/%m/%d'))\n\n" | cat - temp_change.md > CHANGELOG.md
 # Convert changelog entries from markdown link format to simplified "* description (username)" format
 # First remove all PR links
 sed -i -re 's/( \()?\[\\#[0-9]+\]\([^)]*\),? ?\)?//g' changelog_temp.txt

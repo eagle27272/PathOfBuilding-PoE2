@@ -1,3 +1,4 @@
+# cspell:ignore riscv armhf armv
 import pathlib
 import xml.etree.ElementTree as Et
 
@@ -74,7 +75,7 @@ def test_runtime_files_are_platform_scoped_by_default(tmp_path, monkeypatch) -> 
     ]
 
     assert default_sources[0].get("url") == (
-        "https://raw.githubusercontent.com/PathOfBuildingCommunity/"
+        "https://raw.githubusercontent.com/eagle27272/"
         "PathOfBuilding-PoE2/{branch}/"
     )
     assert runtime_sources[0].get("platform") == "win32"
@@ -356,10 +357,10 @@ def test_runtime_architecture_first_target_directories_use_full_architecture_set
     assert (
         "win32",
         "arm64ec",
-        "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/win32-arm64ec/",
+        "https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/win32-arm64ec/",
     ) in source_targets
     assert (
         "freebsd",
         "riscv32",
-        "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/freebsd-riscv32/",
+        "https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/freebsd-riscv32/",
     ) in source_targets

@@ -1,5 +1,6 @@
 """This script requires Python 3.10.0 or higher to run."""
 
+# cspell:ignore armv riscv armhf
 import configparser
 import fnmatch
 import hashlib
@@ -257,7 +258,7 @@ def create_manifest(version: str | None = None, replace: bool = False) -> None:
         logging.critical(f"Manifest configuration file not found in path '{base_path}'")
         return
 
-    base_url = "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/"
+    base_url = "https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/"
     section_entries = _section_entries(config)
 
     parts: list[dict[str, str]] = []

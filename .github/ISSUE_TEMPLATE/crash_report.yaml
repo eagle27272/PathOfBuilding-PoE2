@@ -6,21 +6,21 @@ body:
     attributes:
       value: |
         Thank you for reporting a crash or severe graphical issue in PoB-**PoE2**.
-        [Issues with PoB-PoE1 go here.](https://github.com/PathOfBuildingCommunity/PathOfBuilding/issues)
+        [Issues with PoB-PoE1 go here.](https://github.com/eagle27272/PathOfBuilding/issues)
         Please try to fill in as much of the form below as you're able to. Fields marked with an asterisk (*) are required.
   - type: checkboxes
     id: version
     attributes:
       label: Check version
       options:
-        - label: I'm running the latest version of Path of Building and I've verified this by checking the [changelog](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/blob/master/CHANGELOG.md)
+        - label: I'm running the latest version of Path of Building and I've verified this by checking the [changelog](https://github.com/eagle27272/PathOfBuilding-PoE2/blob/master/CHANGELOG.md)
           required: true
   - type: checkboxes
     id: duplicates
     attributes:
       label: Check for duplicates
       options:
-        - label: I've checked for duplicate open **and closed** issues by using the search function of the [issue tracker](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/issues?q=is%3Aissue)
+        - label: I've checked for duplicate open **and closed** issues by using the search function of the [issue tracker](https://github.com/eagle27272/PathOfBuilding-PoE2/issues?q=is%3Aissue)
           required: true
   - type: dropdown
     id: platform

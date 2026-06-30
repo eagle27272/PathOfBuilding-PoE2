@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <PoBVersion>
 	<Version number="0.21.1" />
-	<Source part="default" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/" />
-	<Source part="runtime" platform="win32" architecture="x64" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/" />
-	<Source part="runtime" platform="macos" architecture="arm64" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/macos-arm64/" />
-	<Source part="runtime" platform="macos" architecture="x64" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/macos-x64/" />
-	<Source part="runtime" platform="linux" architecture="arm64" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/linux-arm64/" />
-	<Source part="runtime" platform="linux" architecture="x64" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/linux-x64/" />
-	<Source part="program" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/src/" />
-	<Source part="tree" url="https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/src/" />
+	<Source part="default" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/" />
+	<Source part="runtime" platform="win32" architecture="x64" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/" />
+	<Source part="runtime" platform="macos" architecture="arm64" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/macos-arm64/" />
+	<Source part="runtime" platform="macos" architecture="x64" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/macos-x64/" />
+	<Source part="runtime" platform="linux" architecture="arm64" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/linux-arm64/" />
+	<Source part="runtime" platform="linux" architecture="x64" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/runtime/linux-x64/" />
+	<Source part="program" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/src/" />
+	<Source part="tree" url="https://raw.githubusercontent.com/eagle27272/PathOfBuilding-PoE2/{branch}/src/" />
 	<File name="changelog.txt" part="default" sha1="b939b071400283a74b2bb22f914452ad3c974afa" />
 	<File name="help.txt" part="default" sha1="eb788d20352333fad99bcf6092306f0c3bca3122" />
 	<File name="LICENSE.md" part="default" sha1="e81bd01e60cdf8646f3308ec71fa0e8e638d544e" />

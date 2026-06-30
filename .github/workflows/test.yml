@@ -1,3 +1,4 @@
+# cspell:ignore pathofbuilding
 name: Run Tests
 on:
   push:
@@ -8,7 +9,7 @@ on:
 jobs:
   run_tests:
     runs-on: ubuntu-latest
-    container: ghcr.io/pathofbuildingcommunity/pathofbuilding-tests:latest
+    container: ghcr.io/eagle27272/pathofbuilding-tests:latest
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +39,7 @@ jobs:
           [ "$found" -eq 1 ]
   check_modcache:
     runs-on: ubuntu-latest
-    container: ghcr.io/pathofbuildingcommunity/pathofbuilding-tests:latest
+    container: ghcr.io/eagle27272/pathofbuilding-tests:latest
     steps:
       - name: Install git dependency
         run: apk add git

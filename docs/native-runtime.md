@@ -191,7 +191,7 @@ because it proves the launcher can load the native runtime entry point.
 ## Building SimpleGraphic
 
 The rendering/runtime library comes from
-`PathOfBuildingCommunity/PathOfBuilding-SimpleGraphic`. That project already has
+`eagle27272/PathOfBuilding-SimpleGraphic`. That project already has
 partial non-Windows code paths, but its published releases currently ship only
 Windows x64 artifacts. A complete native release needs SimpleGraphic and its Lua
 extension modules built for each target platform/architecture and published into

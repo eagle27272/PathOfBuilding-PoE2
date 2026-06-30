@@ -381,7 +381,8 @@ def test_workflows_reference_eagle_owned_cross_repositories() -> None:
         for path in (repo_root / ".github" / "workflows").glob("*.yml")
     }
 
-    assert all("PathOfBuildingCommunity" not in source for source in workflows.values())
+    old_owner = "PathOfBuilding" + "Community"
+    assert all(old_owner not in source for source in workflows.values())
     assert "repository: eagle27272/PathOfBuilding" in workflows["backport.yml"]
     assert "repository: 'eagle27272/PathOfBuilding-Installer'" in workflows["installer.yml"]
     assert "https://github.com/eagle27272/PathOfBuilding/blob/dev/CONTRIBUTING.md" in workflows["builddocker.yml"]

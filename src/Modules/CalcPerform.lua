@@ -1992,7 +1992,7 @@ function calcs.perform(env, skipEHP)
 
 	-- To support maximum sustainable stages for the following skills we need to get the data from already
 	-- computed cached versions to satisfy the order of operations.
-	-- See: https://github.com/PathOfBuildingCommunity/PathOfBuilding/pull/5164
+	-- See: https://github.com/eagle27272/PathOfBuilding/pull/5164
 	for _, activeSkill in ipairs(env.player.activeSkillList) do
 		local disabledFlag
 		if env.mode == "CALCS" then

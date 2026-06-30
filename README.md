@@ -7,7 +7,7 @@
 </p>
 
 ## Download
-Head over to the [Releases](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/releases) page to download the install wizard or portable zip.
+Head over to the [Releases](https://github.com/eagle27272/PathOfBuilding-PoE2/releases) page to download the install wizard or portable zip.
 
 ### Native macOS/Linux runtimes
 Run `Path of Building-PoE2.command` from the repository or portable zip. The launcher looks for a native runtime matching your platform and CPU architecture under `runtime/<platform>-<architecture>/`.
