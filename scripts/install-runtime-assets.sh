@@ -14,6 +14,9 @@ if [ -z "$ASSET_DIR" ] || [ ! -d "$ASSET_DIR" ]; then
 	exit 2
 fi
 
+RESET_MARKER_DIR=$(mktemp -d "${TMPDIR:-/tmp}/pob-runtime-install.XXXXXX")
+trap 'rm -rf "$RESET_MARKER_DIR"' EXIT HUP INT TERM
+
 lower_value() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
@@ -32,16 +35,18 @@ normalize_architecture() {
 	case "$value" in
 		arm64|aarch64) printf '%s\n' arm64 ;;
 		x86_64|amd64) printf '%s\n' x64 ;;
-		i386|i686) printf '%s\n' x86 ;;
+		i386|i486|i586|i686) printf '%s\n' x86 ;;
 		armv7*|armhf) printf '%s\n' armv7 ;;
 		armv6*) printf '%s\n' armv6 ;;
+		armv5*) printf '%s\n' arm ;;
+		ppc64el) printf '%s\n' ppc64le ;;
 		*) printf '%s\n' "$value" ;;
 	esac
 }
 
 is_known_architecture() {
 	case "$(normalize_architecture "$1")" in
-		x64|x86|arm64|arm|armv6|armv7|riscv64|ppc64le|s390x|loongarch64) return 0 ;;
+		x64|x86|arm64|arm64ec|arm64x|arm|armv6|armv7|riscv32|riscv64|riscv128|ppc|ppc64|ppc64le|mips|mips64|s390|s390x|loongarch32|loongarch64|ia64) return 0 ;;
 		*) return 1 ;;
 	esac
 }
@@ -89,7 +94,81 @@ normalize_target() {
 	printf '%s-%s native\n' "$platform" "$architecture"
 }
 
-installed=0
+validate_archive() {
+	python3 - "$1" "$2" <<'PY'
+import pathlib
+import sys
+import tarfile
+
+archive_path = pathlib.Path(sys.argv[1])
+out_dir = pathlib.Path(sys.argv[2]).resolve()
+
+def ensure_within_runtime(path, message):
+    resolved = path.resolve(strict=False)
+    try:
+        resolved.relative_to(out_dir)
+    except ValueError:
+        raise SystemExit(message)
+
+with tarfile.open(archive_path) as archive:
+    members = archive.getmembers()
+    link_member_paths = set()
+    for member in members:
+        member_path = pathlib.PurePosixPath(member.name)
+        if member_path.is_absolute() or ".." in member_path.parts:
+            raise SystemExit(f"Unsafe path in {archive_path.name}: {member.name}")
+        destination = out_dir.joinpath(*member_path.parts)
+        ensure_within_runtime(
+            destination,
+            f"Unsafe path in {archive_path.name}: {member.name}",
+        )
+        if not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
+            raise SystemExit(f"Unsafe member type in {archive_path.name}: {member.name}")
+        if member.issym() or member.islnk():
+            link_path = pathlib.PurePosixPath(member.linkname)
+            if link_path.is_absolute() or ".." in link_path.parts:
+                raise SystemExit(f"Unsafe link in {archive_path.name}: {member.name} -> {member.linkname}")
+            ensure_within_runtime(
+                destination.parent.joinpath(*link_path.parts),
+                f"Unsafe link in {archive_path.name}: {member.name} -> {member.linkname}",
+            )
+            link_member_paths.add(member_path)
+    for member in members:
+        member_path = pathlib.PurePosixPath(member.name)
+        for link_member_path in link_member_paths:
+            if link_member_path != member_path and link_member_path in member_path.parents:
+                raise SystemExit(
+                    f"Unsafe path in {archive_path.name}: {member.name} would extract through link {link_member_path}"
+                )
+PY
+}
+
+extract_archive() {
+	python3 - "$1" "$2" <<'PY'
+import pathlib
+import sys
+import tarfile
+
+archive_path = pathlib.Path(sys.argv[1])
+out_dir = pathlib.Path(sys.argv[2]).resolve()
+
+with tarfile.open(archive_path) as archive:
+    archive.extractall(out_dir)
+PY
+}
+
+reset_native_target_once() {
+	target=$1
+	out_dir=$2
+	marker=$RESET_MARKER_DIR/$target
+	if [ ! -e "$marker" ]; then
+		rm -rf "$out_dir"
+		mkdir -p "$out_dir"
+		: > "$marker"
+	fi
+}
+
+recognized=0
 for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
 	[ -f "$asset" ] || continue
 	base=$(basename "$asset")
@@ -113,50 +192,42 @@ for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
 		out_dir=$RUNTIME_ROOT/$target
 	fi
 
-	mkdir -p "$out_dir"
-	python3 - "$asset" "$out_dir" <<'PY'
-import pathlib
-import sys
-import tarfile
-
-archive_path = pathlib.Path(sys.argv[1])
-out_dir = pathlib.Path(sys.argv[2]).resolve()
-
-def ensure_within_runtime(path, message):
-    resolved = path.resolve(strict=False)
-    try:
-        resolved.relative_to(out_dir)
-    except ValueError:
-        raise SystemExit(message)
-
-with tarfile.open(archive_path) as archive:
-    for member in archive.getmembers():
-        member_path = pathlib.PurePosixPath(member.name)
-        if member_path.is_absolute() or ".." in member_path.parts:
-            raise SystemExit(f"Unsafe path in {archive_path.name}: {member.name}")
-        destination = out_dir.joinpath(*member_path.parts)
-        ensure_within_runtime(
-            destination,
-            f"Unsafe path in {archive_path.name}: {member.name}",
-        )
-        if not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
-            raise SystemExit(f"Unsafe member type in {archive_path.name}: {member.name}")
-        if member.issym() or member.islnk():
-            link_path = pathlib.PurePosixPath(member.linkname)
-            if link_path.is_absolute() or ".." in link_path.parts:
-                raise SystemExit(f"Unsafe link in {archive_path.name}: {member.name} -> {member.linkname}")
-            ensure_within_runtime(
-                destination.parent.joinpath(*link_path.parts),
-                f"Unsafe link in {archive_path.name}: {member.name} -> {member.linkname}",
-            )
-    for member in archive.getmembers():
-        archive.extract(member, out_dir)
-PY
-	installed=$((installed + 1))
-	printf 'Installed %s into %s\n' "$base" "$out_dir"
+	validate_archive "$asset" "$out_dir"
+	recognized=$((recognized + 1))
 done
 
-if [ "$installed" -eq 0 ]; then
+if [ "$recognized" -eq 0 ]; then
 	printf 'No recognized runtime archives found in %s\n' "$ASSET_DIR" >&2
 	exit 1
 fi
+
+installed=0
+for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
+	[ -f "$asset" ] || continue
+	base=$(basename "$asset")
+	case "$base" in
+		*.tar.gz) stem=${base%.tar.gz} ;;
+		*.tgz) stem=${base%.tgz} ;;
+		*.tar) stem=${base%.tar} ;;
+		*) continue ;;
+	esac
+
+	if ! normalized=$(normalize_target "$stem"); then
+		continue
+	fi
+	target=${normalized% *}
+	mode=${normalized#* }
+
+	if [ "$mode" = "legacy" ] && [ "${POB_RUNTIME_INSTALL_LEGACY_WINDOWS:-1}" = "1" ]; then
+		out_dir=$RUNTIME_ROOT
+		mkdir -p "$out_dir"
+	else
+		out_dir=$RUNTIME_ROOT/$target
+		reset_native_target_once "$target" "$out_dir"
+	fi
+
+	mkdir -p "$out_dir"
+	extract_archive "$asset" "$out_dir"
+	installed=$((installed + 1))
+	printf 'Installed %s into %s\n' "$base" "$out_dir"
+done

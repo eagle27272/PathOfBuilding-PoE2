@@ -22,9 +22,11 @@ normalize_architecture() {
 	case "$value" in
 		arm64|aarch64) printf '%s\n' arm64 ;;
 		x86_64|amd64) printf '%s\n' x64 ;;
-		i386|i686) printf '%s\n' x86 ;;
+		i386|i486|i586|i686) printf '%s\n' x86 ;;
 		armv7*|armhf) printf '%s\n' armv7 ;;
 		armv6*) printf '%s\n' armv6 ;;
+		armv5*) printf '%s\n' arm ;;
+		ppc64el) printf '%s\n' ppc64le ;;
 		*) printf '%s\n' "$value" ;;
 	esac
 }

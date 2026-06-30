@@ -19,13 +19,24 @@ KNOWN_ARCHITECTURES = {
     "x64",
     "x86",
     "arm64",
+    "arm64ec",
+    "arm64x",
     "arm",
     "armv6",
     "armv7",
+    "riscv32",
     "riscv64",
+    "riscv128",
+    "ppc",
+    "ppc64",
     "ppc64le",
+    "mips",
+    "mips64",
+    "s390",
     "s390x",
+    "loongarch32",
     "loongarch64",
+    "ia64",
 }
 
 
@@ -44,12 +55,16 @@ def normalize_architecture(value: str) -> str:
         return "x64"
     if value in {"arm64", "aarch64"}:
         return "arm64"
-    if value in {"i386", "i686"}:
+    if value in {"i386", "i486", "i586", "i686"}:
         return "x86"
     if value.startswith("armv7") or value == "armhf":
         return "armv7"
     if value.startswith("armv6"):
         return "armv6"
+    if value.startswith("armv5"):
+        return "arm"
+    if value == "ppc64el":
+        return "ppc64le"
     return value
 
 

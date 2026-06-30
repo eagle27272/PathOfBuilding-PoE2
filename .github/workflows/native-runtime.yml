@@ -6,12 +6,16 @@ on:
             - '.github/workflows/native-runtime.yml'
             - 'launcher/**'
             - 'scripts/package-native-runtime.sh'
+            - 'scripts/verify-pob-runtime-index.py'
+            - 'scripts/write-pob-runtime-index.py'
     push:
         branches: [dev]
         paths:
             - '.github/workflows/native-runtime.yml'
             - 'launcher/**'
             - 'scripts/package-native-runtime.sh'
+            - 'scripts/verify-pob-runtime-index.py'
+            - 'scripts/write-pob-runtime-index.py'
     release:
         types: [published]
 
@@ -69,9 +73,47 @@ jobs:
                   name: PathOfBuildingRuntime-${{ matrix.target }}
                   path: PathOfBuildingRuntime-${{ matrix.target }}.tar
                   if-no-files-found: error
-            - name: Upload release asset
+    index:
+        needs: package
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Download launcher runtime artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: runtime-artifacts
+                  pattern: PathOfBuildingRuntime-*
+                  merge-multiple: true
+            - name: Write launcher runtime index
+              run: scripts/write-pob-runtime-index.py --artifact-dir runtime-artifacts --output runtime-artifacts/PathOfBuildingRuntime-index.json
+            - name: Verify launcher runtime index
+              run: scripts/verify-pob-runtime-index.py runtime-artifacts runtime-artifacts/PathOfBuildingRuntime-index.json
+            - name: Upload workflow artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: PathOfBuildingRuntime-index
+                  path: runtime-artifacts/PathOfBuildingRuntime-index.json
+                  if-no-files-found: error
+    publish:
+        if: github.event_name == 'release'
+        needs: index
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Download launcher runtime artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: release-artifacts
+                  pattern: PathOfBuildingRuntime-*
+                  merge-multiple: true
+            - name: Upload release assets
               if: github.event_name == 'release'
               shell: bash
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: gh release upload "${{ github.event.release.tag_name }}" "PathOfBuildingRuntime-${{ matrix.target }}.tar" --clobber --repo "${{ github.repository }}"
+              run: |
+                  set -euo pipefail
+                  for archive in release-artifacts/PathOfBuildingRuntime-*.tar; do
+                    gh release upload "${{ github.event.release.tag_name }}" "$archive" --clobber --repo "${{ github.repository }}"
+                  done
+                  gh release upload "${{ github.event.release.tag_name }}" release-artifacts/PathOfBuildingRuntime-index.json --clobber --repo "${{ github.repository }}"

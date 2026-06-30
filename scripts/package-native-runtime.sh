@@ -29,16 +29,18 @@ normalize_architecture() {
 	case "$value" in
 		arm64|aarch64) printf '%s\n' arm64 ;;
 		x86_64|amd64|x64) printf '%s\n' x64 ;;
-		i386|i686|x86) printf '%s\n' x86 ;;
+		i386|i486|i586|i686|x86) printf '%s\n' x86 ;;
 		armv7*|armhf) printf '%s\n' armv7 ;;
 		armv6*) printf '%s\n' armv6 ;;
+		armv5*) printf '%s\n' arm ;;
+		ppc64el) printf '%s\n' ppc64le ;;
 		*) safe_part "$value" ;;
 	esac
 }
 
 is_known_architecture() {
 	case "$(normalize_architecture "$1")" in
-		x64|x86|arm64|arm|armv6|armv7|riscv64|ppc64le|s390x|loongarch64) return 0 ;;
+		x64|x86|arm64|arm64ec|arm64x|arm|armv6|armv7|riscv32|riscv64|riscv128|ppc|ppc64|ppc64le|mips|mips64|s390|s390x|loongarch32|loongarch64|ia64) return 0 ;;
 		*) return 1 ;;
 	esac
 }

@@ -480,6 +480,19 @@ def test_package_portable_all_targets_packages_each_runtime_target(tmp_path) -> 
     output_dir = tmp_path / "dist"
     package_repo.mkdir()
     _write_minimal_package_repo(package_repo)
+    (package_repo / "runtime" / "win32-arm64ec").mkdir()
+    (package_repo / "runtime" / "win32-arm64ec" / "PathOfBuilding-PoE2.exe").write_text(
+        "windows arm64ec launcher\n", encoding="utf-8"
+    )
+    manifest = package_repo / "manifest.xml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace(
+            "\t<File name='PathOfBuilding-PoE2' part='runtime' platform='linux' architecture='x64' sha1='linux-hash' />\n",
+            "\t<File name='PathOfBuilding-PoE2' part='runtime' platform='linux' architecture='x64' sha1='linux-hash' />\n"
+            "\t<File name='PathOfBuilding-PoE2.exe' part='runtime' platform='windows' architecture='arm64ec' sha1='win-arm64ec-hash' />\n",
+        ),
+        encoding="utf-8",
+    )
 
     subprocess.run(
         [
@@ -499,6 +512,7 @@ def test_package_portable_all_targets_packages_each_runtime_target(tmp_path) -> 
 
     assert (output_dir / "PathOfBuilding-PoE2-linux-x64.zip").is_file()
     assert (output_dir / "PathOfBuilding-PoE2-macos-arm64.zip").is_file()
+    assert (output_dir / "PathOfBuilding-PoE2-win32-arm64ec.zip").is_file()
 
     with zipfile.ZipFile(output_dir / "PathOfBuilding-PoE2-linux-x64.zip") as archive:
         manifest = Et.fromstring(
@@ -512,6 +526,17 @@ def test_package_portable_all_targets_packages_each_runtime_target(tmp_path) -> 
         names = set(archive.namelist())
         assert "PathOfBuilding-PoE2-linux-x64/runtime/linux-x64/PathOfBuilding-PoE2" in names
         assert "PathOfBuilding-PoE2-linux-x64/runtime/macos-arm64/PathOfBuilding-PoE2" not in names
+
+    with zipfile.ZipFile(output_dir / "PathOfBuilding-PoE2-win32-arm64ec.zip") as archive:
+        manifest = Et.fromstring(
+            archive.read("PathOfBuilding-PoE2-win32-arm64ec/manifest.xml")
+        )
+        version = manifest.find("Version")
+        assert version is not None
+        assert version.get("platform") == "win32"
+        assert version.get("architecture") == "arm64ec"
+        names = set(archive.namelist())
+        assert "PathOfBuilding-PoE2-win32-arm64ec/runtime/win32-arm64ec/PathOfBuilding-PoE2.exe" in names
 
 
 def test_native_portable_workflow_packages_discovered_targets() -> None:

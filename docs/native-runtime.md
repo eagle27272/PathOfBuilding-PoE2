@@ -77,26 +77,41 @@ To create a distributable runtime archive after packaging:
 
 ```sh
 tar -C runtime/macos-arm64 -cf PathOfBuildingRuntime-macos-arm64.tar .
+scripts/write-pob-runtime-index.py PathOfBuildingRuntime-macos-arm64.tar \
+  --output PathOfBuildingRuntime-index.json
 ```
 
 The `Build native launcher runtimes` GitHub Actions workflow builds these
 launcher-only archives for macOS, Linux, and Windows x64/arm64 targets. Workflow
-runs upload them as artifacts, and published releases attach them as release
-assets. Pair the launcher archive with the matching SimpleGraphic runtime
-archive before publishing or installing a complete native runtime directory.
+runs upload them as artifacts, and published releases attach them plus
+`PathOfBuildingRuntime-index.json` as release assets after the index has
+verified the full launcher artifact set. Pair the launcher archive with the
+matching SimpleGraphic runtime archive before publishing or installing a
+complete native runtime directory.
 
-The `update-simple-graphic` repository dispatch can also merge launcher runtime
-assets from this repository while importing a SimpleGraphic release. Include
-`launcher_tag` in the dispatch payload to download `PathOfBuildingRuntime-*`
-assets from the current repository, or include both `launcher_tag` and
-`launcher_release_repo` to fetch launcher assets from another repository.
+The `update-simple-graphic` workflow can be started by repository dispatch or
+manually with `workflow_dispatch`. Manual runs accept the same release details:
+`simplegraphic_tag`, optional `simplegraphic_release_repo`, optional
+`runtime_index`, and optional launcher `launcher_tag`/`launcher_release_repo`/
+`launcher_runtime_index`.
+Include `launcher_tag` to download `PathOfBuildingRuntime-*` assets from the
+current repository, or include both `launcher_tag` and `launcher_release_repo`
+to fetch launcher assets from another repository. SimpleGraphic releases must
+also provide `SimpleGraphicRuntime-index.json`; the update workflow downloads it
+and verifies each SimpleGraphic runtime archive's size and SHA-256 before
+installing payloads. Launcher releases must provide
+`PathOfBuildingRuntime-index.json`; the update workflow verifies each launcher
+archive's size, SHA-256, target labels, and packaged launcher entry before
+installing payloads.
 
 Release automation accepts these archive names:
 
 ```text
 PathOfBuildingRuntime-<platform>-<architecture>.tar
+PathOfBuildingRuntime-index.json
 SimpleGraphicRuntime-<platform>-<architecture>.tar
 SimpleGraphicDLLs-x64-windows.tar
+SimpleGraphicRuntime-index.json
 ```
 
 `scripts/install-runtime-assets.sh <asset-directory>` installs those archives
@@ -105,6 +120,11 @@ in the legacy `runtime/` layout. Archive extraction rejects absolute paths,
 parent-directory traversal, unsupported special file types, unsafe symlink or
 hardlink targets, and members that would resolve outside the target runtime
 directory through pre-existing symlinks before installing any files.
+Native `runtime/<platform>-<architecture>/` directories are reset once per
+target after validation and before extraction, so removed or renamed native
+dependencies cannot linger in the generated update manifest. When a launcher
+archive and a SimpleGraphic archive share a target, both are extracted after the
+single reset.
 
 Common aliases are normalized before installation or packaging. For example,
 `darwin-aarch64` becomes `macos-arm64`, `linux-amd64` becomes `linux-x64`, and

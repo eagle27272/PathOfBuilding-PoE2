@@ -322,3 +322,44 @@ def test_runtime_target_directory_aliases_are_normalized(
     assert runtime_sources[1].get("architecture") == "armv7"
     assert runtime_sources[1].get("url").endswith("/runtime/linux-armv7/")
     assert not runtime_files
+
+
+def test_runtime_architecture_first_target_directories_use_full_architecture_set(
+    tmp_path, monkeypatch
+) -> None:
+    (tmp_path / "changelog.txt").write_text("changes\n", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Launch.lua").write_text("return {}\n", encoding="utf-8")
+    (tmp_path / "runtime").mkdir()
+    _write_minimal_manifest_config(tmp_path)
+    manifest_cfg = tmp_path / "manifest.cfg"
+    manifest_cfg.write_text(
+        manifest_cfg.read_text(encoding="utf-8").replace(
+            "[runtime]\n",
+            "[runtime]\ndiscover-targets = true\ntarget-directories = arm64ec-windows,riscv32-freebsd\n",
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    update_manifest.create_manifest(replace=True)
+
+    root = Et.parse(tmp_path / "manifest.xml").getroot()
+    runtime_sources = [
+        node for node in root.findall("Source") if node.get("part") == "runtime"
+    ]
+    source_targets = {
+        (node.get("platform"), node.get("architecture"), node.get("url"))
+        for node in runtime_sources
+    }
+
+    assert (
+        "win32",
+        "arm64ec",
+        "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/win32-arm64ec/",
+    ) in source_targets
+    assert (
+        "freebsd",
+        "riscv32",
+        "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/{branch}/runtime/freebsd-riscv32/",
+    ) in source_targets

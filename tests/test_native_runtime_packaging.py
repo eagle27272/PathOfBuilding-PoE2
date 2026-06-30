@@ -171,6 +171,33 @@ def test_package_native_runtime_target_override_sets_platform_and_architecture(
     assert launcher.read_text(encoding="utf-8") == "#!/bin/sh\necho target override\n"
 
 
+def test_package_native_runtime_target_override_recognizes_arm64ec_windows(
+    tmp_path,
+) -> None:
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    out_dir = tmp_path / "runtime"
+    compiler = tmp_path / "fake-cxx"
+    _write_fake_compiler(compiler, "echo arm64ec target override")
+
+    env = os.environ.copy()
+    env["CXX"] = str(compiler)
+    env["POB_LAUNCHER_ALLOW_CROSS_TARGET"] = "1"
+    env["POB_LAUNCHER_FORCE_CXX"] = "1"
+    env["POB_RUNTIME_OUT_DIR"] = str(out_dir)
+    env["POB_RUNTIME_TARGET"] = "arm64ec-windows"
+
+    subprocess.run(
+        [str(repo_root / "scripts" / "package-native-runtime.sh")],
+        check=True,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    launcher = out_dir / "PathOfBuilding-PoE2.exe"
+    assert launcher.read_text(encoding="utf-8") == "#!/bin/sh\necho arm64ec target override\n"
+
+
 def test_package_native_runtime_rejects_unsafe_target_override(tmp_path) -> None:
     repo_root = pathlib.Path(__file__).resolve().parents[1]
     env = os.environ.copy()
@@ -237,6 +264,15 @@ def test_native_runtime_workflow_builds_expected_artifact_matrix() -> None:
 
     assert "actions/upload-artifact@v4" in workflow
     assert "gh release upload" in workflow
+    assert "'scripts/verify-pob-runtime-index.py'" in workflow
+    assert "'scripts/write-pob-runtime-index.py'" in workflow
+    assert "scripts/write-pob-runtime-index.py --artifact-dir runtime-artifacts --output runtime-artifacts/PathOfBuildingRuntime-index.json" in workflow
+    assert "scripts/verify-pob-runtime-index.py runtime-artifacts runtime-artifacts/PathOfBuildingRuntime-index.json" in workflow
+    assert "name: PathOfBuildingRuntime-index" in workflow
+    assert "runtime-artifacts/PathOfBuildingRuntime-index.json" in workflow
+    assert "needs: index" in workflow
+    assert "for archive in release-artifacts/PathOfBuildingRuntime-*.tar; do" in workflow
+    assert "release-artifacts/PathOfBuildingRuntime-index.json" in workflow
 
 
 def test_simplegraphic_update_workflow_can_download_launcher_runtime_assets() -> None:
@@ -245,11 +281,38 @@ def test_simplegraphic_update_workflow_can_download_launcher_runtime_assets() ->
         repo_root / ".github" / "workflows" / "update-simple-graphic.yml"
     ).read_text(encoding="utf-8")
 
+    assert "runs-on: ubuntu-24.04" in workflow
+    assert "ubuntu-latest" not in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "simplegraphic_tag:" in workflow
+    assert "simplegraphic_release_repo:" in workflow
+    assert "launcher_tag:" in workflow
+    assert "launcher_runtime_index:" in workflow
     assert "SIMPLEGRAPHIC_RELEASE_REPO" in workflow
+    assert "SIMPLEGRAPHIC_RUNTIME_INDEX" in workflow
     assert "POB_RUNTIME_RELEASE_TAG" in workflow
     assert "POB_RUNTIME_RELEASE_REPO" in workflow
+    assert "POB_RUNTIME_INDEX" in workflow
+    assert "github.event.client_payload.tag || inputs.simplegraphic_tag" in workflow
+    assert "github.event.client_payload.release_repo || inputs.simplegraphic_release_repo" in workflow
+    assert "https://github.com/{0}/releases/tag/{1}" in workflow
+    assert "github.event.client_payload.runtime_index || inputs.runtime_index" in workflow
     assert "github.event.client_payload.launcher_tag" in workflow
+    assert "inputs.launcher_tag" in workflow
     assert "github.event.client_payload.launcher_release_repo" in workflow
+    assert "inputs.launcher_release_repo" in workflow
+    assert "github.event.client_payload.launcher_runtime_index" in workflow
+    assert "inputs.launcher_runtime_index" in workflow
+    assert (
+        'gh release download "$SIMPLEGRAPHIC_RELEASE_TAG" --repo "$SIMPLEGRAPHIC_RELEASE_REPO" --pattern "$SIMPLEGRAPHIC_RUNTIME_INDEX" --dir runtime-assets --clobber'
+        in workflow
+    )
+    assert (
+        "run: scripts/import-simplegraphic-runtime.sh runtime-assets"
+        in workflow
+    )
+    assert "title: Update SimpleGraphic runtime to ${{ env.SIMPLEGRAPHIC_RELEASE_TAG }}" in workflow
+    assert "branch: simple-graphic-${{ env.SIMPLEGRAPHIC_RELEASE_TAG }}" in workflow
     assert (
         "SimpleGraphicDLLs-x64-windows.tar' --dir runtime-assets --clobber || true"
         in workflow
@@ -257,5 +320,9 @@ def test_simplegraphic_update_workflow_can_download_launcher_runtime_assets() ->
     assert "PathOfBuildingRuntime-*.tar" in workflow
     assert "PathOfBuildingRuntime-*.tar.gz" in workflow
     assert "PathOfBuildingRuntime-*.tgz" in workflow
+    assert (
+        'gh release download "$POB_RUNTIME_RELEASE_TAG" --repo "$POB_RUNTIME_RELEASE_REPO" --pattern "$POB_RUNTIME_INDEX" --dir runtime-assets --clobber'
+        in workflow
+    )
     assert "SimpleGraphicRuntime-*.tar.gz" in workflow
     assert "SimpleGraphicRuntime-*.tgz" in workflow
