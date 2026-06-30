@@ -21,6 +21,8 @@ RUNTIME_PREFIX = "SimpleGraphicRuntime-"
 LEGACY_WINDOWS_ARCHIVE = "SimpleGraphicDLLs-x64-windows.tar"
 MANIFEST_NAME = "SimpleGraphicRuntime.json"
 SUPPORTED_SUFFIXES = (".tar.gz", ".tgz", ".tar")
+REQUIRED_ENTRYPOINTS = {"RunLuaFileAsWin", "RunLuaFileAsConsole"}
+MODULE_BASENAMES = ("lcurl", "lua-utf8", "socket", "lzip")
 KNOWN_ARCHITECTURES = {
     "x64",
     "x86",
@@ -131,6 +133,74 @@ def require_string_list(value: object, field: str) -> list[str]:
     return value
 
 
+def require_flat_file_list(value: object, field: str) -> list[str]:
+    items = require_string_list(value, field)
+    names: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        name = safe_file_name(item, field)
+        if name in seen:
+            fail(f"index field {field!r} contains duplicate entry {name!r}")
+        seen.add(name)
+        names.append(name)
+    return names
+
+
+def lua_module_basename(module: str) -> str:
+    return module.split(".", 1)[0]
+
+
+def expected_entry_library(platform: str) -> str | None:
+    if platform == "win32":
+        return "SimpleGraphic.dll"
+    if platform == "macos":
+        return "libSimpleGraphic.dylib"
+    if platform == "linux":
+        return "libSimpleGraphic.so"
+    return None
+
+
+def expected_lua_modules(platform: str) -> tuple[str, ...] | None:
+    if platform == "win32":
+        return tuple(f"{name}.dll" for name in MODULE_BASENAMES)
+    if platform in ("linux", "macos"):
+        return tuple(f"{name}.so" for name in MODULE_BASENAMES)
+    return None
+
+
+def require_entrypoints(value: object, field: str) -> list[str]:
+    entrypoints = require_string_list(value, field)
+    seen = set(entrypoints)
+    if len(seen) != len(entrypoints):
+        fail(f"index field {field!r} contains duplicate entry")
+    if seen != REQUIRED_ENTRYPOINTS or len(entrypoints) != len(REQUIRED_ENTRYPOINTS):
+        fail(f"index field {field!r} must list only entrypoints {sorted(REQUIRED_ENTRYPOINTS)}")
+    return entrypoints
+
+
+def require_lua_modules(value: object, field: str, platform: str) -> list[str]:
+    lua_modules = require_flat_file_list(value, field)
+    platform_lua_modules = expected_lua_modules(platform)
+    if platform_lua_modules is not None:
+        expected_modules = set(platform_lua_modules)
+        if set(lua_modules) != expected_modules or len(lua_modules) != len(platform_lua_modules):
+            fail(f"index field {field!r} must list Lua modules {sorted(expected_modules)}")
+        return lua_modules
+
+    basenames = [lua_module_basename(module) for module in lua_modules]
+    duplicate_basenames = sorted(
+        basename for basename in set(basenames) if basenames.count(basename) > 1
+    )
+    if duplicate_basenames:
+        fail(f"index field {field!r} contains duplicate module base names {duplicate_basenames}")
+
+    expected_basenames = set(MODULE_BASENAMES)
+    if set(basenames) != expected_basenames or len(basenames) != len(MODULE_BASENAMES):
+        fail(f"index field {field!r} must list Lua modules {sorted(MODULE_BASENAMES)}")
+
+    return lua_modules
+
+
 def require_int(value: object, field: str) -> int:
     if not isinstance(value, int) or value < 0:
         fail(f"index field {field!r} must be a non-negative integer")
@@ -162,8 +232,9 @@ def clean_member_name(member: tarfile.TarInfo, archive_path: pathlib.Path) -> st
     return "" if clean in ("", ".") else clean.rstrip("/")
 
 
-def load_runtime_archive_manifest(archive_path: pathlib.Path) -> tuple[dict, set[str]]:
+def load_runtime_archive_manifest(archive_path: pathlib.Path) -> tuple[dict, set[str], set[str]]:
     names: set[str] = set()
+    regular_files: set[str] = set()
     file_data: dict[str, bytes] = {}
     link_member_paths: set[pathlib.PurePosixPath] = set()
 
@@ -189,6 +260,7 @@ def load_runtime_archive_manifest(archive_path: pathlib.Path) -> tuple[dict, set
                 fail(f"runtime archive must be flat: {member.name}")
             names.add(clean)
             if member.isfile():
+                regular_files.add(clean)
                 extracted = archive.extractfile(member)
                 if extracted is None:
                     fail(f"{archive_path.name} member is not readable: {member.name}")
@@ -212,7 +284,7 @@ def load_runtime_archive_manifest(archive_path: pathlib.Path) -> tuple[dict, set
         fail(f"{archive_path.name} has invalid {MANIFEST_NAME}: {exc}")
     if not isinstance(manifest, dict):
         fail(f"{archive_path.name} {MANIFEST_NAME} must be a JSON object")
-    return manifest, names
+    return manifest, names, regular_files
 
 
 def load_index(index_path: pathlib.Path) -> dict:
@@ -273,7 +345,7 @@ def verify_runtime_archive_manifest(
     platform: str,
     architecture: str,
 ) -> None:
-    manifest, names = load_runtime_archive_manifest(archive_path)
+    manifest, names, regular_files = load_runtime_archive_manifest(archive_path)
     require_manifest_value(manifest, archive_path, "schemaVersion", 1)
     require_manifest_value(manifest, archive_path, "name", "SimpleGraphic")
     require_manifest_value(manifest, archive_path, "target", target)
@@ -295,6 +367,12 @@ def verify_runtime_archive_manifest(
     for module_name in entry["luaModules"]:
         if module_name not in names:
             fail(f"{archive_path.name} is missing Lua module {module_name}")
+    missing_regular_files = ({MANIFEST_NAME, entry["entryLibrary"], *entry["luaModules"]} - regular_files)
+    if missing_regular_files:
+        fail(
+            f"{archive_path.name} is missing required regular files: "
+            f"{', '.join(sorted(missing_regular_files))}"
+        )
 
 
 def verify_runtime_entry(asset_dir: pathlib.Path, entry: dict, field: str) -> tuple[str, str]:
@@ -305,10 +383,17 @@ def verify_runtime_entry(asset_dir: pathlib.Path, entry: dict, field: str) -> tu
     require_entry_value(entry, field, "architecture", architecture)
     require_entry_value(entry, field, "layout", "flat")
     require_string(entry.get("buildType"), f"{field}.buildType")
-    require_string(entry.get("entryLibrary"), f"{field}.entryLibrary")
-    require_string_list(entry.get("entrypoints"), f"{field}.entrypoints")
-    require_string_list(entry.get("luaModules"), f"{field}.luaModules")
-    require_string_list(entry.get("files"), f"{field}.files")
+    entry_library = safe_file_name(entry.get("entryLibrary"), f"{field}.entryLibrary")
+    platform_entry_library = expected_entry_library(platform)
+    if platform_entry_library is not None and entry_library != platform_entry_library:
+        fail(
+            f"index field {field}.entryLibrary expected "
+            f"{platform_entry_library!r}, got {entry_library!r}"
+        )
+    entry["entryLibrary"] = entry_library
+    entry["entrypoints"] = require_entrypoints(entry.get("entrypoints"), f"{field}.entrypoints")
+    entry["luaModules"] = require_lua_modules(entry.get("luaModules"), f"{field}.luaModules", platform)
+    entry["files"] = require_flat_file_list(entry.get("files"), f"{field}.files")
     archive_path = verify_file_checksum(asset_dir, entry, field)
     verify_runtime_archive_manifest(archive_path, entry, target, platform, architecture)
     return file_name, target

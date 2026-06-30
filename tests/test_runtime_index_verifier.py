@@ -320,6 +320,189 @@ def test_verify_runtime_index_rejects_embedded_manifest_mismatch(tmp_path) -> No
     assert "manifest field 'target' expected 'macos-arm64'" in result.stderr
 
 
+def test_verify_runtime_index_rejects_wrong_known_platform_entry_library(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    runtime_entry = _write_asset(
+        asset_dir / "SimpleGraphicRuntime-macos-arm64.tar",
+        b"macos runtime",
+        manifest_overrides={
+            "entryLibrary": "SimpleGraphic.native",
+            "files": [
+                "SimpleGraphicRuntime.json",
+                "SimpleGraphic.native",
+                "lcurl.so",
+                "lua-utf8.so",
+                "socket.so",
+                "lzip.so",
+            ],
+        },
+    )
+    runtime_entry["entryLibrary"] = "SimpleGraphic.native"
+    runtime_entry["files"] = [
+        "SimpleGraphicRuntime.json",
+        "SimpleGraphic.native",
+        "lcurl.so",
+        "lua-utf8.so",
+        "socket.so",
+        "lzip.so",
+    ]
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 1
+    assert "entryLibrary expected 'libSimpleGraphic.dylib'" in result.stderr
+
+
+def test_verify_runtime_index_rejects_extra_entrypoint_metadata(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    entrypoints = ["RunLuaFileAsWin", "RunLuaFileAsConsole", "RunExperimental"]
+    runtime_entry = _write_asset(
+        asset_dir / "SimpleGraphicRuntime-macos-arm64.tar",
+        b"macos runtime",
+        manifest_overrides={"entrypoints": entrypoints},
+    )
+    runtime_entry["entrypoints"] = entrypoints
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 1
+    assert "must list only entrypoints" in result.stderr
+
+
+def test_verify_runtime_index_rejects_wrong_known_platform_lua_modules(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    modules = ["lcurl.dylib", "lua-utf8.so", "socket.so", "lzip.so"]
+    runtime_entry = _write_asset(
+        asset_dir / "SimpleGraphicRuntime-macos-arm64.tar",
+        b"macos runtime",
+        manifest_overrides={
+            "luaModules": modules,
+            "files": [
+                "SimpleGraphicRuntime.json",
+                "libSimpleGraphic.dylib",
+                *modules,
+            ],
+        },
+    )
+    runtime_entry["luaModules"] = modules
+    runtime_entry["files"] = [
+        "SimpleGraphicRuntime.json",
+        "libSimpleGraphic.dylib",
+        *modules,
+    ]
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 1
+    assert "must list Lua modules" in result.stderr
+
+
+def test_verify_runtime_index_accepts_future_platform_module_file_names(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    modules = ["lcurl.native", "lua-utf8.native", "socket.native", "lzip.native"]
+    runtime_entry = _write_asset(
+        asset_dir / "SimpleGraphicRuntime-freebsd-riscv64.tar",
+        b"future runtime",
+        manifest_overrides={
+            "entryLibrary": "SimpleGraphic.native",
+            "luaModules": modules,
+            "files": [
+                "SimpleGraphicRuntime.json",
+                "SimpleGraphic.native",
+                *modules,
+            ],
+        },
+    )
+    runtime_entry.update(
+        {
+            "entryLibrary": "SimpleGraphic.native",
+            "luaModules": modules,
+            "files": [
+                "SimpleGraphicRuntime.json",
+                "SimpleGraphic.native",
+                *modules,
+            ],
+        }
+    )
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 0, result.stderr
+    assert "Verified 1 SimpleGraphic runtime archive(s)" in result.stdout
+
+
+def test_verify_runtime_index_rejects_required_symlink_runtime_files(tmp_path) -> None:
+    asset_dir = tmp_path / "assets"
+    asset_dir.mkdir()
+    archive_path = asset_dir / "SimpleGraphicRuntime-macos-arm64.tar"
+    modules = ["lcurl.so", "lua-utf8.so", "socket.so", "lzip.so"]
+    manifest = {
+        "schemaVersion": 1,
+        "name": "SimpleGraphic",
+        "target": "macos-arm64",
+        "platform": "macos",
+        "architecture": "arm64",
+        "buildType": "Release",
+        "layout": "flat",
+        "entryLibrary": "libSimpleGraphic.dylib",
+        "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
+        "luaModules": modules,
+        "files": [
+            "SimpleGraphicRuntime.json",
+            "libSimpleGraphic.dylib",
+            *modules,
+        ],
+    }
+    with tarfile.open(archive_path, "w") as archive:
+        manifest_data = json.dumps(manifest).encode("utf-8")
+        manifest_member = tarfile.TarInfo("SimpleGraphicRuntime.json")
+        manifest_member.size = len(manifest_data)
+        archive.addfile(manifest_member, io.BytesIO(manifest_data))
+        link = tarfile.TarInfo("libSimpleGraphic.dylib")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "libSimpleGraphic.real.dylib"
+        archive.addfile(link)
+        for module in modules:
+            module_data = b"module"
+            member = tarfile.TarInfo(module)
+            member.size = len(module_data)
+            archive.addfile(member, io.BytesIO(module_data))
+    content = archive_path.read_bytes()
+    runtime_entry = {
+        "fileName": archive_path.name,
+        "target": "macos-arm64",
+        "platform": "macos",
+        "architecture": "arm64",
+        "buildType": "Release",
+        "layout": "flat",
+        "entryLibrary": "libSimpleGraphic.dylib",
+        "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
+        "luaModules": modules,
+        "files": manifest["files"],
+        "size": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+    index_path = asset_dir / "SimpleGraphicRuntime-index.json"
+    _write_index(index_path, [runtime_entry])
+
+    result = _run_verifier(asset_dir, index_path)
+
+    assert result.returncode == 1
+    assert "is missing required regular files: libSimpleGraphic.dylib" in result.stderr
+
+
 def test_verify_runtime_index_rejects_unsafe_runtime_archive_link(tmp_path) -> None:
     asset_dir = tmp_path / "assets"
     asset_dir.mkdir()
