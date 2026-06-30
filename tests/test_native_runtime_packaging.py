@@ -1,3 +1,4 @@
+# cspell:ignore simplegraphic SIMPLEGRAPHIC liblib gles riscv ARCHITEW RUNNER builddocker
 import os
 import pathlib
 import stat
@@ -142,6 +143,50 @@ def test_package_native_runtime_detects_windows_arm64_under_emulation(tmp_path) 
 
     launcher = out_dir / "PathOfBuilding-PoE2.exe"
     assert launcher.read_text(encoding="utf-8") == "#!/bin/sh\necho fake arm64 launcher\n"
+
+
+def test_package_native_runtime_detects_windows_arm64_from_runner_arch(tmp_path) -> None:
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_uname = bin_dir / "uname"
+    fake_uname.write_text(
+        "#!/bin/sh\n"
+        "if [ \"${1:-}\" = \"-m\" ]; then\n"
+        "  printf 'x86_64\\n'\n"
+        "else\n"
+        "  printf 'MINGW64_NT-10.0\\n'\n"
+        "fi\n",
+        encoding="utf-8",
+    )
+    fake_uname.chmod(fake_uname.stat().st_mode | stat.S_IXUSR)
+    compiler = tmp_path / "fake-cxx"
+    _write_fake_compiler(compiler, "echo fake runner arch launcher")
+    out_dir = tmp_path / "runtime"
+
+    env = os.environ.copy()
+    env["CXX"] = str(compiler)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+    env["POB_LAUNCHER_FORCE_CXX"] = "1"
+    env["POB_RUNTIME_OUT_DIR"] = str(out_dir)
+    env["POB_RUNTIME_PLATFORM"] = "win32"
+    env["POB_RUNTIME_ARCHITECTURE"] = "arm64"
+    env["PROCESSOR_ARCHITECTURE"] = "AMD64"
+    env.pop("PROCESSOR_ARCHITEW6432", None)
+    env["RUNNER_ARCH"] = "ARM64"
+
+    subprocess.run(
+        [str(repo_root / "scripts" / "package-native-runtime.sh")],
+        check=True,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    launcher = out_dir / "PathOfBuilding-PoE2.exe"
+    assert launcher.read_text(encoding="utf-8") == (
+        "#!/bin/sh\necho fake runner arch launcher\n"
+    )
 
 
 def test_package_native_runtime_target_override_sets_platform_and_architecture(

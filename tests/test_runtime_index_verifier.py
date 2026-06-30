@@ -1,3 +1,4 @@
+# cspell:ignore unindexed simplegraphic
 import hashlib
 import io
 import json
@@ -38,6 +39,15 @@ def _write_runtime_archive(
         "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
         "luaModules": ["lcurl.so", "lua-utf8.so", "socket.so", "lzip.so"],
     }
+    member_names = {
+        "SimpleGraphicRuntime.json",
+        manifest["entryLibrary"],
+        *manifest["luaModules"],
+    }
+    for member in extra_members or []:
+        member_info = member[0] if isinstance(member, tuple) else member
+        member_names.add(member_info.name)
+    manifest["files"] = sorted(member_names)
     if manifest_overrides:
         manifest.update(manifest_overrides)
 
@@ -88,6 +98,14 @@ def _write_asset(
         "entryLibrary": "libSimpleGraphic.dylib",
         "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
         "luaModules": ["lcurl.so", "lua-utf8.so", "socket.so", "lzip.so"],
+        "files": [
+            "SimpleGraphicRuntime.json",
+            "lcurl.so",
+            "libSimpleGraphic.dylib",
+            "lua-utf8.so",
+            "lzip.so",
+            "socket.so",
+        ],
         "size": path.stat().st_size,
         "sha256": hashlib.sha256(archive_content).hexdigest(),
     }
@@ -185,6 +203,14 @@ def test_verify_runtime_index_rejects_missing_indexed_archive(tmp_path) -> None:
                 "entryLibrary": "libSimpleGraphic.dylib",
                 "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
                 "luaModules": ["lcurl.so", "lua-utf8.so", "socket.so", "lzip.so"],
+                "files": [
+                    "SimpleGraphicRuntime.json",
+                    "lcurl.so",
+                    "libSimpleGraphic.dylib",
+                    "lua-utf8.so",
+                    "lzip.so",
+                    "socket.so",
+                ],
                 "size": 10,
                 "sha256": "0" * 64,
             }

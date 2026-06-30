@@ -1,3 +1,4 @@
+# cspell:ignore choco
 name: Create new installer
 on:
   release:

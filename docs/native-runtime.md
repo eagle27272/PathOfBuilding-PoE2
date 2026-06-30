@@ -1,4 +1,5 @@
 # Native Runtime
+<!-- cspell:ignore riscv DCMAKE SIMPLEGRAPHIC simplegraphic armhf armv -->
 
 Path of Building's Lua application is platform-neutral, but it needs a small
 native host runtime to provide rendering, input, networking, subprocesses, and
@@ -121,10 +122,13 @@ parent-directory traversal, unsupported special file types, unsafe symlink or
 hardlink targets, and members that would resolve outside the target runtime
 directory through pre-existing symlinks before installing any files.
 Native `runtime/<platform>-<architecture>/` directories are reset once per
-target after validation and before extraction, so removed or renamed native
-dependencies cannot linger in the generated update manifest. When a launcher
-archive and a SimpleGraphic archive share a target, both are extracted after the
-single reset.
+target after validation when a matching `PathOfBuildingRuntime-*` launcher
+archive is part of the install batch, so a full launcher+SimpleGraphic refresh
+cannot leave renamed native files behind. A SimpleGraphic-only update preserves
+existing launcher-owned files and removes files listed by the previous
+`SimpleGraphicRuntime.json` before extracting the new SimpleGraphic archive.
+That lets SimpleGraphic releases refresh native libraries without clobbering the
+PoE2 launcher artifacts.
 
 Common aliases are normalized before installation or packaging. For example,
 `darwin-aarch64` becomes `macos-arm64`, `linux-amd64` becomes `linux-x64`, and

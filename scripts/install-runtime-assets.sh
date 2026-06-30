@@ -1,4 +1,5 @@
 #!/bin/sh
+# cspell:ignore armv armhf riscv simplegraphic pathlib getmembers joinpath isfile issym extractall isinstance
 set -eu
 
 case "$0" in
@@ -94,6 +95,15 @@ normalize_target() {
 	printf '%s-%s native\n' "$platform" "$architecture"
 }
 
+archive_component() {
+	case "$1" in
+		SimpleGraphicDLLs-x64-windows|SimpleGraphicDLLs-x64-win32) printf '%s\n' legacy ;;
+		SimpleGraphicRuntime-*) printf '%s\n' simplegraphic ;;
+		PathOfBuildingRuntime-*) printf '%s\n' launcher ;;
+		*) return 1 ;;
+	esac
+}
+
 validate_archive() {
 	python3 - "$1" "$2" <<'PY'
 import pathlib
@@ -168,6 +178,63 @@ reset_native_target_once() {
 	fi
 }
 
+remove_previous_simplegraphic_runtime() {
+	python3 - "$1" <<'PY'
+import json
+import pathlib
+import sys
+
+out_dir = pathlib.Path(sys.argv[1]).resolve()
+manifest_path = out_dir / "SimpleGraphicRuntime.json"
+if not manifest_path.exists():
+    raise SystemExit(0)
+
+def ensure_inside(path: pathlib.Path) -> None:
+    try:
+        path.resolve(strict=False).relative_to(out_dir)
+    except ValueError:
+        raise SystemExit(f"Unsafe existing SimpleGraphic runtime path: {path}")
+
+def safe_flat_file_name(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise SystemExit(f"Invalid existing SimpleGraphicRuntime.json field {field}")
+    path = pathlib.PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts or len(path.parts) != 1 or path.name in (".", ".."):
+        raise SystemExit(f"Unsafe existing SimpleGraphicRuntime.json field {field}: {value}")
+    return path.name
+
+ensure_inside(manifest_path)
+try:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"Invalid existing SimpleGraphicRuntime.json: {exc}")
+if not isinstance(manifest, dict):
+    raise SystemExit("Invalid existing SimpleGraphicRuntime.json: expected object")
+
+owned_names = {"SimpleGraphicRuntime.json"}
+for key in ("entryLibrary",):
+    if key in manifest:
+        owned_names.add(safe_flat_file_name(manifest[key], key))
+for key in ("luaModules", "files"):
+    value = manifest.get(key, [])
+    if value is None:
+        value = []
+    if not isinstance(value, list):
+        raise SystemExit(f"Invalid existing SimpleGraphicRuntime.json field {key}")
+    for item in value:
+        owned_names.add(safe_flat_file_name(item, key))
+
+for name in sorted(owned_names):
+    path = out_dir / name
+    ensure_inside(path)
+    if not path.exists() and not path.is_symlink():
+        continue
+    if path.is_dir() and not path.is_symlink():
+        raise SystemExit(f"Refusing to remove directory from existing SimpleGraphic runtime: {path}")
+    path.unlink()
+PY
+}
+
 recognized=0
 for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
 	[ -f "$asset" ] || continue
@@ -183,8 +250,12 @@ for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
 		printf 'Skipping unrecognized runtime archive: %s\n' "$base" >&2
 		continue
 	fi
+	component=$(archive_component "$stem")
 	target=${normalized% *}
 	mode=${normalized#* }
+	if [ "$component" = "launcher" ]; then
+		: > "$RESET_MARKER_DIR/launcher-$target"
+	fi
 
 	if [ "$mode" = "legacy" ] && [ "${POB_RUNTIME_INSTALL_LEGACY_WINDOWS:-1}" = "1" ]; then
 		out_dir=$RUNTIME_ROOT
@@ -215,6 +286,7 @@ for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
 	if ! normalized=$(normalize_target "$stem"); then
 		continue
 	fi
+	component=$(archive_component "$stem")
 	target=${normalized% *}
 	mode=${normalized#* }
 
@@ -223,7 +295,14 @@ for asset in "$ASSET_DIR"/*.tar "$ASSET_DIR"/*.tar.gz "$ASSET_DIR"/*.tgz; do
 		mkdir -p "$out_dir"
 	else
 		out_dir=$RUNTIME_ROOT/$target
-		reset_native_target_once "$target" "$out_dir"
+		if [ -e "$RESET_MARKER_DIR/launcher-$target" ]; then
+			reset_native_target_once "$target" "$out_dir"
+		elif [ "$component" = "simplegraphic" ]; then
+			mkdir -p "$out_dir"
+			remove_previous_simplegraphic_runtime "$out_dir"
+		else
+			reset_native_target_once "$target" "$out_dir"
+		fi
 	fi
 
 	mkdir -p "$out_dir"

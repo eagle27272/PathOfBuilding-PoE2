@@ -1,3 +1,4 @@
+# cspell:ignore Buildx buildx pathofbuilding opencontainers
 name: Build and publish busted tests docker image
 on:
  workflow_dispatch:

@@ -1,3 +1,4 @@
+# cspell:ignore simplegraphic SIMPLEGRAPHIC
 name: Update SimpleGraphic runtime
 on:
     workflow_dispatch:

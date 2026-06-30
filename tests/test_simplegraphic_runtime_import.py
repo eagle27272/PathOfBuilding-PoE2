@@ -1,3 +1,4 @@
+# cspell:ignore arcname simplegraphic
 import hashlib
 import io
 import json
@@ -49,6 +50,7 @@ def _write_simplegraphic_tar(path: pathlib.Path, entry_content: str = "native ru
         "entryLibrary": entry_library,
         "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
         "luaModules": lua_modules,
+        "files": sorted(["SimpleGraphicRuntime.json", entry_library, *lua_modules]),
     }
     members = {
         "SimpleGraphicRuntime.json": json.dumps(manifest),
@@ -86,6 +88,14 @@ def _write_runtime_index(asset_dir: pathlib.Path, *archive_paths: pathlib.Path) 
                 "entryLibrary": "libSimpleGraphic.dylib",
                 "entrypoints": ["RunLuaFileAsWin", "RunLuaFileAsConsole"],
                 "luaModules": ["lcurl.so", "lua-utf8.so", "socket.so", "lzip.so"],
+                "files": [
+                    "SimpleGraphicRuntime.json",
+                    "lcurl.so",
+                    "libSimpleGraphic.dylib",
+                    "lua-utf8.so",
+                    "lzip.so",
+                    "socket.so",
+                ],
                 "size": len(content),
                 "sha256": hashlib.sha256(content).hexdigest(),
             }
@@ -168,6 +178,17 @@ def test_import_simplegraphic_runtime_verifies_installs_and_updates_manifest(
     asset_dir.mkdir()
     runtime_target.mkdir(parents=True)
     (runtime_target / "stale.dylib").write_text("old runtime", encoding="utf-8")
+    (runtime_target / "PathOfBuilding-PoE2").write_text("existing launcher", encoding="utf-8")
+    (runtime_target / "SimpleGraphicRuntime.json").write_text(
+        json.dumps(
+            {
+                "entryLibrary": "libSimpleGraphic.dylib",
+                "luaModules": [],
+                "files": ["SimpleGraphicRuntime.json", "stale.dylib"],
+            }
+        ),
+        encoding="utf-8",
+    )
     _write_minimal_manifest_repo(import_repo)
     archive_path = asset_dir / "SimpleGraphicRuntime-macos-arm64.tar"
     _write_simplegraphic_tar(archive_path, "native runtime")
@@ -184,6 +205,7 @@ def test_import_simplegraphic_runtime_verifies_installs_and_updates_manifest(
     )
 
     assert not (runtime_target / "stale.dylib").exists()
+    assert (runtime_target / "PathOfBuilding-PoE2").read_text(encoding="utf-8") == "existing launcher"
     assert (runtime_target / "libSimpleGraphic.dylib").read_text(encoding="utf-8") == "native runtime"
 
     root = Et.parse(import_repo / "manifest.xml").getroot()
@@ -303,6 +325,17 @@ def test_import_simplegraphic_runtime_installs_multiple_indexed_targets(
         runtime_target = import_repo / "runtime" / target
         runtime_target.mkdir(parents=True)
         (runtime_target / "stale.dylib").write_text("old runtime", encoding="utf-8")
+        (runtime_target / "PathOfBuilding-PoE2").write_text(f"{target} launcher", encoding="utf-8")
+        (runtime_target / "SimpleGraphicRuntime.json").write_text(
+            json.dumps(
+                {
+                    "entryLibrary": "libSimpleGraphic.dylib",
+                    "luaModules": [],
+                    "files": ["SimpleGraphicRuntime.json", "stale.dylib"],
+                }
+            ),
+            encoding="utf-8",
+        )
         archive_path = asset_dir / f"SimpleGraphicRuntime-{target}.tar"
         _write_simplegraphic_tar(archive_path, content)
         archives.append(archive_path)
@@ -327,6 +360,7 @@ def test_import_simplegraphic_runtime_installs_multiple_indexed_targets(
     ):
         runtime_target = import_repo / "runtime" / target
         assert not (runtime_target / "stale.dylib").exists()
+        assert (runtime_target / "PathOfBuilding-PoE2").read_text(encoding="utf-8") == f"{target} launcher"
         assert (runtime_target / "libSimpleGraphic.dylib").read_text(encoding="utf-8") == content
         assert any(
             file.get("name") == "libSimpleGraphic.dylib"

@@ -1,4 +1,5 @@
 #!/bin/sh
+# cspell:ignore armv armhf riscv ARCHITEW RUNNER DCMAKE SIMPLEGRAPHIC liblib
 set -eu
 
 case "$0" in
@@ -88,6 +89,10 @@ detect_architecture() {
 	if [ "$(detect_platform)" = "win32" ]; then
 		if [ -n "${PROCESSOR_ARCHITEW6432:-}" ]; then
 			normalize_architecture "$PROCESSOR_ARCHITEW6432"
+			return
+		fi
+		if [ -n "${RUNNER_ARCH:-}" ]; then
+			normalize_architecture "$RUNNER_ARCH"
 			return
 		fi
 		if [ -n "${PROCESSOR_ARCHITECTURE:-}" ]; then

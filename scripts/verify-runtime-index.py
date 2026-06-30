@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:ignore armv riscv armhf unindexed
 import argparse
 import hashlib
 import json
@@ -278,8 +279,17 @@ def verify_runtime_archive_manifest(
     require_manifest_value(manifest, archive_path, "target", target)
     require_manifest_value(manifest, archive_path, "platform", platform)
     require_manifest_value(manifest, archive_path, "architecture", architecture)
-    for key in ("buildType", "layout", "entryLibrary", "entrypoints", "luaModules"):
+    for key in ("buildType", "layout", "entryLibrary", "entrypoints", "luaModules", "files"):
         require_manifest_value(manifest, archive_path, key, entry[key])
+    if set(entry["files"]) != names:
+        missing = names - set(entry["files"])
+        extra = set(entry["files"]) - names
+        details = []
+        if missing:
+            details.append(f"missing {sorted(missing)}")
+        if extra:
+            details.append(f"unknown {sorted(extra)}")
+        fail(f"{archive_path.name} files metadata does not match archive: {', '.join(details)}")
     if entry["entryLibrary"] not in names:
         fail(f"{archive_path.name} is missing entry library {entry['entryLibrary']}")
     for module_name in entry["luaModules"]:
@@ -298,6 +308,7 @@ def verify_runtime_entry(asset_dir: pathlib.Path, entry: dict, field: str) -> tu
     require_string(entry.get("entryLibrary"), f"{field}.entryLibrary")
     require_string_list(entry.get("entrypoints"), f"{field}.entrypoints")
     require_string_list(entry.get("luaModules"), f"{field}.luaModules")
+    require_string_list(entry.get("files"), f"{field}.files")
     archive_path = verify_file_checksum(asset_dir, entry, field)
     verify_runtime_archive_manifest(archive_path, entry, target, platform, architecture)
     return file_name, target

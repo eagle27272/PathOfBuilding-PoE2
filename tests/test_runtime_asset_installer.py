@@ -1,4 +1,6 @@
+# cspell:ignore arcname simplegraphic oldmodule riscv armv
 import io
+import json
 import os
 import pathlib
 import subprocess
@@ -104,6 +106,59 @@ def test_installs_launcher_and_simplegraphic_archives_into_same_target(
         runtime_root / "macos-arm64" / "libSimpleGraphic.dylib"
     ).read_text(encoding="utf-8") == "simplegraphic runtime"
     assert not (runtime_root / "macos-arm64" / "stale.dylib").exists()
+
+
+def test_simplegraphic_only_update_preserves_existing_launcher(tmp_path) -> None:
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    asset_dir = tmp_path / "assets"
+    runtime_root = tmp_path / "runtime"
+    target_dir = runtime_root / "macos-arm64"
+    asset_dir.mkdir()
+    target_dir.mkdir(parents=True)
+    (target_dir / "PathOfBuilding-PoE2").write_text("existing launcher", encoding="utf-8")
+    (target_dir / "oldmodule.so").write_text("old module", encoding="utf-8")
+    (target_dir / "unowned-cache.dat").write_text("not simplegraphic-owned", encoding="utf-8")
+    (target_dir / "SimpleGraphicRuntime.json").write_text(
+        json.dumps(
+            {
+                "entryLibrary": "libSimpleGraphic.dylib",
+                "luaModules": ["oldmodule.so"],
+                "files": [
+                    "SimpleGraphicRuntime.json",
+                    "libSimpleGraphic.dylib",
+                    "oldmodule.so",
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (target_dir / "libSimpleGraphic.dylib").write_text("old runtime", encoding="utf-8")
+    _write_tar(
+        asset_dir / "SimpleGraphicRuntime-macos-arm64.tar",
+        {
+            "SimpleGraphicRuntime.json": json.dumps(
+                {
+                    "entryLibrary": "libSimpleGraphic.dylib",
+                    "luaModules": [],
+                    "files": ["SimpleGraphicRuntime.json", "libSimpleGraphic.dylib"],
+                }
+            ),
+            "libSimpleGraphic.dylib": "new runtime",
+        },
+    )
+
+    env = os.environ.copy()
+    env["POB_RUNTIME_ROOT"] = str(runtime_root)
+    subprocess.run(
+        [str(repo_root / "scripts" / "install-runtime-assets.sh"), str(asset_dir)],
+        check=True,
+        env=env,
+    )
+
+    assert (target_dir / "PathOfBuilding-PoE2").read_text(encoding="utf-8") == "existing launcher"
+    assert (target_dir / "libSimpleGraphic.dylib").read_text(encoding="utf-8") == "new runtime"
+    assert not (target_dir / "oldmodule.so").exists()
+    assert (target_dir / "unowned-cache.dat").read_text(encoding="utf-8") == "not simplegraphic-owned"
 
 
 def test_installs_native_arch_platform_archive_to_target_dir(tmp_path) -> None:
