@@ -36,8 +36,8 @@ jobs:
         runs-on: ubuntu-24.04
         env:
             SIMPLEGRAPHIC_RELEASE_TAG: ${{ github.event.client_payload.tag || inputs.simplegraphic_tag }}
-            SIMPLEGRAPHIC_RELEASE_REPO: ${{ github.event.client_payload.release_repo || inputs.simplegraphic_release_repo || format('{0}/PathOfBuilding-SimpleGraphic', github.repository_owner) }}
-            SIMPLEGRAPHIC_RELEASE_LINK: ${{ github.event.client_payload.release_link || inputs.simplegraphic_release_link || format('https://github.com/{0}/releases/tag/{1}', github.event.client_payload.release_repo || inputs.simplegraphic_release_repo || format('{0}/PathOfBuilding-SimpleGraphic', github.repository_owner), github.event.client_payload.tag || inputs.simplegraphic_tag) }}
+            SIMPLEGRAPHIC_RELEASE_REPO: ${{ github.event.client_payload.release_repo || inputs.simplegraphic_release_repo || 'eagle27272/PathOfBuilding-SimpleGraphic' }}
+            SIMPLEGRAPHIC_RELEASE_LINK: ${{ github.event.client_payload.release_link || inputs.simplegraphic_release_link || format('https://github.com/{0}/releases/tag/{1}', github.event.client_payload.release_repo || inputs.simplegraphic_release_repo || 'eagle27272/PathOfBuilding-SimpleGraphic', github.event.client_payload.tag || inputs.simplegraphic_tag) }}
             SIMPLEGRAPHIC_RUNTIME_INDEX: ${{ github.event.client_payload.runtime_index || inputs.runtime_index || 'SimpleGraphicRuntime-index.json' }}
             POB_RUNTIME_RELEASE_TAG: ${{ github.event.client_payload.launcher_tag || inputs.launcher_tag || '' }}
             POB_RUNTIME_RELEASE_REPO: ${{ github.event.client_payload.launcher_release_repo || inputs.launcher_release_repo || github.repository }}

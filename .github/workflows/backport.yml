@@ -50,6 +50,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.WIRES77_PAT }}
-          repository: ${{ github.repository_owner }}/PathOfBuilding
+          repository: eagle27272/PathOfBuilding
           event-type: port-changes
           client-payload: ${{ steps.payload.outputs.result }}

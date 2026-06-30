@@ -289,6 +289,7 @@ def test_simplegraphic_update_workflow_can_download_launcher_runtime_assets() ->
     assert "launcher_tag:" in workflow
     assert "launcher_runtime_index:" in workflow
     assert "SIMPLEGRAPHIC_RELEASE_REPO" in workflow
+    assert "'eagle27272/PathOfBuilding-SimpleGraphic'" in workflow
     assert "SIMPLEGRAPHIC_RUNTIME_INDEX" in workflow
     assert "POB_RUNTIME_RELEASE_TAG" in workflow
     assert "POB_RUNTIME_RELEASE_REPO" in workflow
@@ -326,3 +327,17 @@ def test_simplegraphic_update_workflow_can_download_launcher_runtime_assets() ->
     )
     assert "SimpleGraphicRuntime-*.tar.gz" in workflow
     assert "SimpleGraphicRuntime-*.tgz" in workflow
+
+
+def test_workflows_reference_eagle_owned_cross_repositories() -> None:
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    workflows = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in (repo_root / ".github" / "workflows").glob("*.yml")
+    }
+
+    assert all("PathOfBuildingCommunity" not in source for source in workflows.values())
+    assert "repository: eagle27272/PathOfBuilding" in workflows["backport.yml"]
+    assert "repository: 'eagle27272/PathOfBuilding-Installer'" in workflows["installer.yml"]
+    assert "https://github.com/eagle27272/PathOfBuilding/blob/dev/CONTRIBUTING.md" in workflows["builddocker.yml"]
+    assert "'eagle27272/PathOfBuilding-SimpleGraphic'" in workflows["update-simple-graphic.yml"]
